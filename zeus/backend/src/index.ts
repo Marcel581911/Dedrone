@@ -8,6 +8,7 @@ import { chatRoutes } from "./routes/chat.js";
 import { logRoutes } from "./routes/logs.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
 import { log } from "./logger.js";
+import { startWorker } from "./services/worker.js";
 
 const app = Fastify({ logger: false });
 
@@ -34,6 +35,9 @@ try {
   const address = await app.listen({ port: PORT, host: "0.0.0.0" });
   console.log(`⚡ ZEUS Backend running at ${address}`);
   await log("info", "system", `ZEUS Backend started on ${address}`);
+
+  // Start the ticket worker loop inside the same process
+  startWorker();
 } catch (err) {
   console.error(err);
   process.exit(1);

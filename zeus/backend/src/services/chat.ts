@@ -1,6 +1,9 @@
 import OpenAI from "openai";
 import { prisma } from "../db.js";
 import { log } from "../logger.js";
+import { executeSkill } from "./skill-executor.js";
+
+const MAX_TOOL_ROUNDS = 5;
 
 export async function chatWithAgent(agentId: string, conversationId: string, userMessage: string) {
   const agent = await prisma.agent.findUniqueOrThrow({
@@ -17,12 +20,10 @@ export async function chatWithAgent(agentId: string, conversationId: string, use
     .filter((as) => as.skill.enabled)
     .map((as) => as.skill);
 
-  // Save user message
   await prisma.message.create({
     data: { conversationId, role: "user", content: userMessage },
   });
 
-  // Check for missing skills by analyzing the user request
   const missingSkill = await detectMissingSkill(userMessage, enabledSkills.map((s) => s.name), agentId);
 
   const previousMessages = await prisma.message.findMany({
@@ -30,6 +31,8 @@ export async function chatWithAgent(agentId: string, conversationId: string, use
     orderBy: { createdAt: "asc" },
     take: 50,
   });
+
+  const systemPrompt = await buildSystemPrompt(agent, enabledSkills);
 
   const tools: OpenAI.ChatCompletionTool[] = enabledSkills.map((skill) => ({
     type: "function" as const,
@@ -40,8 +43,9 @@ export async function chatWithAgent(agentId: string, conversationId: string, use
     },
   }));
 
-  const messages: OpenAI.ChatCompletionMessageParam[] = [
-    { role: "system", content: buildSystemPrompt(agent, enabledSkills) },
+  // Conversation history for the API call
+  const apiMessages: OpenAI.ChatCompletionMessageParam[] = [
+    { role: "system", content: systemPrompt },
     ...previousMessages.map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
@@ -51,49 +55,95 @@ export async function chatWithAgent(agentId: string, conversationId: string, use
   const client = new OpenAI({ apiKey: apiKeySetting.value });
 
   try {
-    const completion = await client.chat.completions.create({
-      model: agent.model,
-      messages,
-      temperature: agent.temperature,
-      max_tokens: agent.maxTokens,
-      ...(tools.length > 0 ? { tools } : {}),
-    });
+    let finalContent = "";
+    let toolLog: string[] = [];
+    let round = 0;
 
-    const choice = completion.choices[0];
-    let responseContent = choice.message.content || "";
+    // Tool-call loop: keep going while the model wants to call tools
+    while (round < MAX_TOOL_ROUNDS) {
+      round++;
 
-    if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
-      const toolResults: string[] = [];
-      for (const tc of choice.message.tool_calls) {
+      const completion = await client.chat.completions.create({
+        model: agent.model,
+        messages: apiMessages,
+        temperature: agent.temperature,
+        max_tokens: agent.maxTokens,
+        ...(tools.length > 0 ? { tools } : {}),
+      });
+
+      const choice = completion.choices[0];
+      const msg = choice.message;
+
+      if (!msg.tool_calls || msg.tool_calls.length === 0) {
+        // No more tool calls — this is the final text response
+        finalContent = msg.content || "";
+        break;
+      }
+
+      // Model wants to call tools — execute them
+      // Add the assistant message with tool_calls to context
+      apiMessages.push(msg as any);
+
+      for (const tc of msg.tool_calls) {
         const skillName = tc.function.name;
         const skill = enabledSkills.find((s) => s.name === skillName);
+
+        let toolResultContent: string;
+
         if (!skill) {
           await createSkillGap(skillName, `Tool call from agent ${agent.name}: ${userMessage}`, agentId);
-          toolResults.push(`[Skill "${skillName}" is not available. A skill gap has been recorded.]`);
+          toolResultContent = JSON.stringify({
+            success: false,
+            message: `Skill "${skillName}" is not available. A skill gap has been recorded. Do not retry this call.`,
+          });
+          toolLog.push(`[gap] ${skillName} — not available, gap recorded`);
         } else {
-          toolResults.push(`[Skill "${skillName}" invoked with args: ${tc.function.arguments}. Execution is simulated — implement the skill for real results.]`);
+          const result = await executeSkill(skillName, tc.function.arguments);
+          toolResultContent = JSON.stringify(result);
+          toolLog.push(`[${result.success ? "ok" : "fail"}] ${skillName} — ${result.message}`);
         }
+
+        // Feed the tool result back to the model
+        apiMessages.push({
+          role: "tool",
+          tool_call_id: tc.id,
+          content: toolResultContent,
+        } as any);
       }
-      responseContent = (responseContent ? responseContent + "\n\n" : "") + toolResults.join("\n");
+
+      // If the model also returned text alongside tool_calls, capture it
+      if (msg.content) {
+        finalContent = msg.content;
+      }
     }
 
+    // Append skill-gap notice if detected from keyword scan
     if (missingSkill) {
-      responseContent = (responseContent ? responseContent + "\n\n" : "") +
-        `⚠ I detected that this request may require the skill "${missingSkill}" which is not currently available. A skill gap has been recorded.`;
+      finalContent += finalContent
+        ? `\n\n---\n*Note: This request may require the skill "${missingSkill}" which is not currently available. A skill gap has been recorded.*`
+        : `I detected that this request may require the skill "${missingSkill}" which is not currently available. A skill gap has been recorded.`;
+    }
+
+    // Include tool execution log in the persisted message so the user sees what happened
+    if (toolLog.length > 0) {
+      const logBlock = toolLog.map((l) => `  ${l}`).join("\n");
+      finalContent += `\n\n---\n**Actions taken:**\n${logBlock}`;
     }
 
     const assistantMsg = await prisma.message.create({
-      data: { conversationId, role: "assistant", content: responseContent },
+      data: { conversationId, role: "assistant", content: finalContent },
     });
 
-    // Update conversation title from first message if it's the default
+    // Update conversation title from first user message
     const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
     if (conv && conv.title === "New Conversation") {
       const title = userMessage.slice(0, 60) + (userMessage.length > 60 ? "..." : "");
       await prisma.conversation.update({ where: { id: conversationId }, data: { title } });
     }
 
-    await log("info", "chat", `Agent ${agent.name} responded`, { agentId, conversationId });
+    await log("info", "chat", `Agent ${agent.name} responded (${round} round${round > 1 ? "s" : ""}, ${toolLog.length} tool calls)`, {
+      agentId, conversationId, rounds: round, toolCalls: toolLog.length,
+    });
 
     return { message: assistantMsg, missingSkill };
   } catch (e: any) {
@@ -102,19 +152,44 @@ export async function chatWithAgent(agentId: string, conversationId: string, use
   }
 }
 
-function buildSystemPrompt(
-  agent: { name: string; role: string; mission: string; systemPrompt: string },
+async function buildSystemPrompt(
+  agent: { id: string; name: string; role: string; mission: string; systemPrompt: string },
   skills: { name: string; description: string }[]
-): string {
+): Promise<string> {
   let prompt = agent.systemPrompt;
   prompt += `\n\nYou are ${agent.name}, a ${agent.role}.`;
   prompt += `\nYour mission: ${agent.mission}`;
-  if (skills.length > 0) {
-    prompt += `\n\nAvailable skills: ${skills.map((s) => `${s.name} (${s.description})`).join(", ")}`;
-    prompt += `\nIf a user asks for something that requires a capability you don't have, clearly state you lack that skill. Do NOT pretend to have capabilities you don't.`;
-  } else {
-    prompt += `\n\nYou have no registered skills. If a user asks for something that requires a specific capability, clearly state you lack that skill.`;
+
+  // Give the agent awareness of the full team
+  const allAgents = await prisma.agent.findMany({
+    where: { enabled: true },
+    select: { id: true, name: true, role: true, mission: true },
+  });
+
+  if (allAgents.length > 1) {
+    prompt += `\n\n## Team — Available Agents`;
+    prompt += `\nYou can assign work to these agents by creating tickets and assigning them:`;
+    for (const a of allAgents) {
+      if (a.id === agent.id) {
+        prompt += `\n  - ${a.name} (ID: ${a.id}) — THIS IS YOU`;
+      } else {
+        prompt += `\n  - ${a.name} (ID: ${a.id}) — ${a.role}: ${a.mission}`;
+      }
+    }
+    prompt += `\n\nTo delegate work: first call create_ticket to create a task, then call assign_ticket with the ticketId and the target agent's ID. The worker will pick it up and the assigned agent will process it automatically.`;
   }
+
+  if (skills.length > 0) {
+    prompt += `\n\n## Your Skills`;
+    prompt += `\nYou have access to the following tools. Use them when appropriate:`;
+    for (const s of skills) {
+      prompt += `\n  - ${s.name}: ${s.description}`;
+    }
+    prompt += `\n\nIMPORTANT: If a user asks for something that requires a capability you do NOT have as a tool, clearly state you lack that skill. Do NOT pretend to have capabilities you don't have.`;
+  } else {
+    prompt += `\n\nYou have no registered tools. If a user asks for something requiring a specific capability, clearly state you lack that skill.`;
+  }
+
   return prompt;
 }
 
