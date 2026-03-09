@@ -3,16 +3,45 @@ const BASE = "/api";
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     ...options,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
+    if (err.error === "not_authenticated") {
+      window.dispatchEvent(new CustomEvent("zeus:logout"));
+    }
     throw new Error(err.error || "Request failed");
   }
   return res.json();
 }
 
 export const api = {
+  // Auth
+  authStatus: () => request<any>("/auth/status"),
+  onboard: (password: string, vmAddress: string) =>
+    request<any>("/auth/onboard", {
+      method: "POST",
+      body: JSON.stringify({ password, vmAddress }),
+    }),
+  login: (password: string) =>
+    request<any>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }),
+  logout: () =>
+    request<any>("/auth/logout", { method: "POST" }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<any>("/auth/password", {
+      method: "PUT",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+  updateVmAddress: (vmAddress: string) =>
+    request<any>("/auth/vm-address", {
+      method: "PUT",
+      body: JSON.stringify({ vmAddress }),
+    }),
+
   // Dashboard
   dashboard: () => request<any>("/dashboard"),
 

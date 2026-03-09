@@ -317,18 +317,35 @@ if [ ! -f "$DATA_DIR/zeus.db" ]; then
 else
   pass "Database exists ($DATA_DIR/zeus.db)"
 
-  # Run any pending migrations
   info "Applying pending migrations (if any)..."
   npx prisma migrate deploy --schema prisma/schema.prisma 2>/dev/null || true
 fi
+
+step "Frontend Build"
+info "Building frontend for production..."
+cd "$SCRIPT_DIR"
+pnpm build
+echo ""
+
+# ── Detect VM IP ─────────────────────────────────
+VM_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 
 # ── Done ─────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo -e "${GREEN}${BOLD}⚡ ZEUS is ready.${NC}"
 echo ""
-echo "  Start dev mode:     pnpm dev"
-echo "  Start worker:       pnpm worker"
+echo -e "  Start ZEUS:         ${BOLD}pnpm start${NC}"
+echo "  Dev mode:           pnpm dev"
 echo "  Reseed data:        pnpm seed"
 echo "  Check only:         bash setup.sh --check"
+echo ""
+if [[ -n "$VM_IP" ]]; then
+  echo -e "  ${CYAN}Your VM IP:${NC}  ${BOLD}${VM_IP}${NC}"
+  echo -e "  ${CYAN}Access URL:${NC}  ${BOLD}http://${VM_IP}:3000${NC}"
+  echo ""
+  echo "  On first launch, the UI will ask you to set a password"
+  echo "  and confirm the IP address. After that, use the URL above"
+  echo "  from any browser on your network."
+fi
 echo ""

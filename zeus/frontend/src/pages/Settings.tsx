@@ -233,10 +233,144 @@ export default function Settings() {
       <button
         onClick={save}
         disabled={saving}
-        className="px-6 py-3 bg-amber-600 hover:bg-amber-500 rounded text-sm font-medium disabled:opacity-50"
+        className="px-6 py-3 bg-amber-600 hover:bg-amber-500 rounded text-sm font-medium disabled:opacity-50 mb-6"
       >
         {saving ? "Saving..." : "Save All Settings"}
       </button>
+
+      {/* Access & Security */}
+      <AccessSection />
     </div>
+  );
+}
+
+function AccessSection() {
+  const [vmAddress, setVmAddress] = useState("");
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [pwMsg, setPwMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [addrMsg, setAddrMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [changingPw, setChangingPw] = useState(false);
+
+  useEffect(() => {
+    api.authStatus().then((s) => {
+      if (s.vmAddress) setVmAddress(s.vmAddress);
+    });
+  }, []);
+
+  const changePassword = async () => {
+    setPwMsg(null);
+    if (newPw.length < 4) { setPwMsg({ type: "err", text: "Min 4 characters." }); return; }
+    if (newPw !== confirmPw) { setPwMsg({ type: "err", text: "Passwords don't match." }); return; }
+    setChangingPw(true);
+    try {
+      await api.changePassword(currentPw, newPw);
+      setPwMsg({ type: "ok", text: "Password changed." });
+      setCurrentPw(""); setNewPw(""); setConfirmPw("");
+    } catch (e: any) {
+      setPwMsg({ type: "err", text: e.message });
+    } finally {
+      setChangingPw(false);
+    }
+  };
+
+  const updateAddr = async () => {
+    setAddrMsg(null);
+    if (!vmAddress.trim()) { setAddrMsg({ type: "err", text: "Enter an address." }); return; }
+    try {
+      await api.updateVmAddress(vmAddress.trim());
+      setAddrMsg({ type: "ok", text: "Address updated." });
+    } catch (e: any) {
+      setAddrMsg({ type: "err", text: e.message });
+    }
+  };
+
+  const accessUrl = vmAddress ? `http://${vmAddress}:3000` : "";
+
+  return (
+    <>
+      {/* Remote Access */}
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
+        <h3 className="text-lg font-semibold mb-4">Remote Access</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">VM IP Address</label>
+            <div className="flex gap-2">
+              <input
+                value={vmAddress}
+                onChange={(e) => setVmAddress(e.target.value)}
+                placeholder="e.g. 192.168.1.100"
+                className="flex-1 bg-gray-800 border border-gray-700 rounded px-4 py-2.5 text-sm focus:border-amber-600 outline-none"
+              />
+              <button
+                onClick={updateAddr}
+                className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 rounded text-sm"
+              >
+                Update
+              </button>
+            </div>
+            {addrMsg && (
+              <p className={`text-xs mt-1 ${addrMsg.type === "ok" ? "text-green-400" : "text-red-400"}`}>
+                {addrMsg.text}
+              </p>
+            )}
+          </div>
+          {accessUrl && (
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <p className="text-xs text-gray-500 mb-1">Access from any device:</p>
+              <a
+                href={accessUrl}
+                target="_blank"
+                rel="noopener"
+                className="text-amber-400 hover:text-amber-300 font-mono text-sm underline break-all"
+              >
+                {accessUrl}
+              </a>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Password */}
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+        <h3 className="text-lg font-semibold mb-4">Change Password</h3>
+        <div className="space-y-3 max-w-sm">
+          <input
+            type="password"
+            value={currentPw}
+            onChange={(e) => setCurrentPw(e.target.value)}
+            placeholder="Current password"
+            className="w-full bg-gray-800 border border-gray-700 rounded px-4 py-2.5 text-sm focus:border-amber-600 outline-none"
+          />
+          <input
+            type="password"
+            value={newPw}
+            onChange={(e) => setNewPw(e.target.value)}
+            placeholder="New password"
+            className="w-full bg-gray-800 border border-gray-700 rounded px-4 py-2.5 text-sm focus:border-amber-600 outline-none"
+          />
+          <input
+            type="password"
+            value={confirmPw}
+            onChange={(e) => setConfirmPw(e.target.value)}
+            placeholder="Confirm new password"
+            className="w-full bg-gray-800 border border-gray-700 rounded px-4 py-2.5 text-sm focus:border-amber-600 outline-none"
+          />
+          {pwMsg && (
+            <p className={`text-sm ${pwMsg.type === "ok" ? "text-green-400" : "text-red-400"}`}>
+              {pwMsg.text}
+            </p>
+          )}
+          <button
+            onClick={changePassword}
+            disabled={changingPw}
+            className="px-5 py-2.5 bg-gray-700 hover:bg-gray-600 rounded text-sm font-medium disabled:opacity-50"
+          >
+            {changingPw ? "Changing..." : "Change Password"}
+          </button>
+        </div>
+      </div>
+    </>
   );
 }

@@ -1,4 +1,6 @@
-import { Routes, Route, NavLink, Navigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Routes, Route, NavLink, Navigate, useNavigate } from "react-router-dom";
+import { api } from "./api";
 import Dashboard from "./pages/Dashboard";
 import Agents from "./pages/Agents";
 import AgentDetail from "./pages/AgentDetail";
@@ -7,6 +9,8 @@ import Skills from "./pages/Skills";
 import SkillGaps from "./pages/SkillGaps";
 import Logs from "./pages/Logs";
 import Settings from "./pages/Settings";
+import Onboarding from "./pages/Onboarding";
+import Login from "./pages/Login";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: "◆" },
@@ -18,7 +22,68 @@ const NAV = [
   { to: "/settings", label: "Settings", icon: "☰" },
 ];
 
+type AuthState = "loading" | "onboarding" | "login" | "authenticated";
+
 export default function App() {
+  const [authState, setAuthState] = useState<AuthState>("loading");
+
+  const checkAuth = async () => {
+    try {
+      const status = await api.authStatus();
+      if (!status.onboarded) {
+        setAuthState("onboarding");
+        return;
+      }
+      // Try a protected endpoint to check if session is valid
+      await api.dashboard();
+      setAuthState("authenticated");
+    } catch (e: any) {
+      if (e.message === "not_onboarded") {
+        setAuthState("onboarding");
+      } else {
+        setAuthState("login");
+      }
+    }
+  };
+
+  useEffect(() => {
+    checkAuth();
+
+    const handleLogout = () => setAuthState("login");
+    window.addEventListener("zeus:logout", handleLogout);
+    return () => window.removeEventListener("zeus:logout", handleLogout);
+  }, []);
+
+  if (authState === "loading") {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-amber-400 mb-3">⚡ ZEUS</h1>
+          <p className="text-gray-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (authState === "onboarding") {
+    return <Onboarding onComplete={() => setAuthState("authenticated")} />;
+  }
+
+  if (authState === "login") {
+    return <Login onLogin={() => setAuthState("authenticated")} />;
+  }
+
+  return <AuthenticatedApp onLogout={() => setAuthState("login")} />;
+}
+
+function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
+  const navigate = useNavigate();
+
+  const logout = async () => {
+    await api.logout();
+    onLogout();
+  };
+
   return (
     <div className="flex h-screen bg-gray-950 text-gray-100">
       <aside className="w-56 bg-gray-900 border-r border-gray-800 flex flex-col">
@@ -45,8 +110,13 @@ export default function App() {
             </NavLink>
           ))}
         </nav>
-        <div className="p-4 border-t border-gray-800 text-xs text-gray-600">
-          Local Runtime • SQLite
+        <div className="p-4 border-t border-gray-800">
+          <button
+            onClick={logout}
+            className="w-full text-left text-xs text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            Sign Out
+          </button>
         </div>
       </aside>
       <main className="flex-1 overflow-auto">
