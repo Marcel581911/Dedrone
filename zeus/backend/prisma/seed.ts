@@ -16,6 +16,11 @@ async function main() {
     update: {},
     create: { key: "default_model", value: "gpt-4o-mini" },
   });
+  await prisma.setting.upsert({
+    where: { key: "telegram_bot_token" },
+    update: {},
+    create: { key: "telegram_bot_token", value: "" },
+  });
 
   // ── Skills ──────────────────────────────────────
 

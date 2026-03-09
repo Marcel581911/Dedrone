@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../api";
 
-type Tab = "config" | "chat" | "memory" | "tickets" | "skills";
+type Tab = "config" | "chat" | "memory" | "tickets" | "skills" | "telegram";
 
 export default function AgentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +25,7 @@ export default function AgentDetail() {
     { key: "memory", label: "Memory" },
     { key: "tickets", label: "Tickets" },
     { key: "skills", label: "Skills" },
+    { key: "telegram", label: "Telegram" },
   ];
 
   return (
@@ -59,6 +60,7 @@ export default function AgentDetail() {
       {tab === "memory" && <MemoryTab agent={agent} onUpdate={load} />}
       {tab === "tickets" && <TicketsTab agent={agent} />}
       {tab === "skills" && <SkillsTab agent={agent} onUpdate={load} />}
+      {tab === "telegram" && <TelegramTab agent={agent} />}
     </Wrap>
   );
 }
@@ -395,6 +397,115 @@ function SkillsTab({ agent, onUpdate }: { agent: any; onUpdate: () => void }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function TelegramTab({ agent }: { agent: any }) {
+  const [botStatus, setBotStatus] = useState<any>({ running: false, username: "" });
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [pairings, setPairings] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.telegramStatus().then(setBotStatus);
+    api.telegramPairings().then((all) => {
+      setPairings(all.filter((p: any) => p.agent.id === agent.id));
+    });
+  }, [agent.id]);
+
+  const generateCode = async () => {
+    setGenerating(true);
+    try {
+      const result = await api.telegramPair(agent.id);
+      setPairingCode(result.code);
+    } catch (e: any) {
+      alert(`Error: ${e.message}`);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const removePairing = async (id: string) => {
+    if (!confirm("Remove this pairing?")) return;
+    await api.telegramUnpair(id);
+    const all = await api.telegramPairings();
+    setPairings(all.filter((p: any) => p.agent.id === agent.id));
+  };
+
+  return (
+    <div className="max-w-2xl">
+      {!botStatus.running ? (
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="w-2 h-2 rounded-full bg-gray-600" />
+            <span className="text-sm text-gray-400">Telegram bot is not running</span>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            Go to <strong>Settings</strong> to enter your Telegram bot token and start the bot.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-sm text-gray-400">
+                Bot running as <span className="text-blue-400">@{botStatus.username}</span>
+              </span>
+            </div>
+
+            <h4 className="text-sm font-semibold text-gray-400 mb-3">Pair Telegram Chat → {agent.name}</h4>
+            <p className="text-sm text-gray-500 mb-4">
+              Generate a code, then send <code className="bg-gray-800 px-1.5 py-0.5 rounded text-amber-400">/pair CODE</code> to your bot on Telegram.
+            </p>
+
+            <button
+              onClick={generateCode}
+              disabled={generating}
+              className="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 rounded text-sm font-medium disabled:opacity-50"
+            >
+              {generating ? "Generating..." : "Generate Pairing Code"}
+            </button>
+
+            {pairingCode && (
+              <div className="mt-4 bg-gray-800 border border-amber-800 rounded-lg p-5 text-center">
+                <p className="text-xs text-gray-500 mb-2">Send this to your bot on Telegram:</p>
+                <p className="text-sm text-gray-400 mb-1">/pair</p>
+                <p className="text-3xl font-mono font-bold text-amber-400 tracking-widest">{pairingCode}</p>
+                <p className="text-xs text-gray-600 mt-3">Expires in 10 minutes</p>
+              </div>
+            )}
+          </div>
+
+          {/* Active pairings for this agent */}
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+            <h4 className="text-sm font-semibold text-gray-400 mb-3">
+              Active Pairings ({pairings.length})
+            </h4>
+            {pairings.length > 0 ? (
+              <div className="space-y-2">
+                {pairings.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between bg-gray-800 rounded p-3">
+                    <div>
+                      <span className="text-sm font-medium">{p.chatTitle || `Chat ${p.telegramChatId}`}</span>
+                      <span className="text-xs text-gray-500 ml-2">ID: {p.telegramChatId}</span>
+                    </div>
+                    <button
+                      onClick={() => removePairing(p.id)}
+                      className="text-xs text-red-400 hover:text-red-300"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600">No Telegram chats paired to this agent yet.</p>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -6,8 +6,9 @@ export async function settingsRoutes(app: FastifyInstance) {
   app.get("/api/settings", async () => {
     const settings = await prisma.setting.findMany();
     const map: Record<string, string> = {};
+    const SECRET_KEYS = ["openai_api_key", "telegram_bot_token"];
     for (const s of settings) {
-      map[s.key] = s.key === "openai_api_key" && s.value
+      map[s.key] = SECRET_KEYS.includes(s.key) && s.value
         ? s.value.slice(0, 8) + "..." + s.value.slice(-4)
         : s.value;
     }

@@ -30,7 +30,8 @@ model Agent {
   conversations Conversation[]
   memories      Memory[]
   tickets       Ticket[]
-  agentSkills   AgentSkill[]
+  agentSkills        AgentSkill[]
+  telegramPairings   TelegramPairing[]
 }
 
 model Conversation {
@@ -107,6 +108,24 @@ model SkillGap {
   resolved       Boolean  @default(false)
   generatedPath  String?
   createdAt      DateTime @default(now())
+}
+
+model TelegramPairing {
+  id             String   @id @default(uuid())
+  telegramChatId String   @unique
+  agentId        String
+  conversationId String?
+  chatTitle      String   @default("")
+  createdAt      DateTime @default(now())
+  agent          Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+}
+
+model TelegramPairingCode {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  agentId   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 model LogEntry {

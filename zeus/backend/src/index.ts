@@ -7,8 +7,11 @@ import { skillRoutes } from "./routes/skills.js";
 import { chatRoutes } from "./routes/chat.js";
 import { logRoutes } from "./routes/logs.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
+import { telegramRoutes } from "./routes/telegram.js";
 import { log } from "./logger.js";
 import { startWorker } from "./services/worker.js";
+import { startBot } from "./services/telegram.js";
+import { prisma } from "./db.js";
 
 const app = Fastify({ logger: false });
 
@@ -28,6 +31,7 @@ await app.register(skillRoutes);
 await app.register(chatRoutes);
 await app.register(logRoutes);
 await app.register(dashboardRoutes);
+await app.register(telegramRoutes);
 
 const PORT = parseInt(process.env.PORT || "3000");
 
@@ -36,8 +40,18 @@ try {
   console.log(`⚡ ZEUS Backend running at ${address}`);
   await log("info", "system", `ZEUS Backend started on ${address}`);
 
-  // Start the ticket worker loop inside the same process
   startWorker();
+
+  // Auto-start Telegram bot if token is configured
+  const tgToken = await prisma.setting.findUnique({ where: { key: "telegram_bot_token" } });
+  if (tgToken?.value) {
+    const result = await startBot();
+    if (!result.success) {
+      console.log(`📱 Telegram bot failed to auto-start: ${result.error}`);
+    }
+  } else {
+    console.log("📱 Telegram bot: no token configured (add in Settings)");
+  }
 } catch (err) {
   console.error(err);
   process.exit(1);

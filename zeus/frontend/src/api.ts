@@ -103,4 +103,14 @@ export const api = {
     return request<any[]>(`/logs${qs}`);
   },
   clearLogs: () => request<any>("/logs", { method: "DELETE" }),
+
+  // Telegram
+  telegramStatus: () => request<any>("/telegram/status"),
+  telegramStart: () => request<any>("/telegram/start", { method: "POST" }),
+  telegramStop: () => request<any>("/telegram/stop", { method: "POST" }),
+  telegramPair: (agentId: string) =>
+    request<any>(`/telegram/pair/${agentId}`, { method: "POST" }),
+  telegramPairings: () => request<any[]>("/telegram/pairings"),
+  telegramUnpair: (id: string) =>
+    request<any>(`/telegram/pairings/${id}`, { method: "DELETE" }),
 };
