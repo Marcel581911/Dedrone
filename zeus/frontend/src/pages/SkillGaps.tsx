@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { Card, PageTitle, Btn, Badge, EmptyState } from "../components/ui";
 
 export default function SkillGaps() {
   const [gaps, setGaps] = useState<any[]>([]);
@@ -11,74 +12,52 @@ export default function SkillGaps() {
   const generate = async (id: string) => {
     setGenerating(id);
     try {
-      const result = await api.generateStub(id);
-      alert(`Skill stub generated!\n\nFiles created:\n${result.generatedFiles.join("\n")}`);
+      await api.generateStub(id);
       load();
-    } catch (e: any) {
-      alert(`Error: ${e.message}`);
-    } finally {
-      setGenerating(null);
-    }
+    } catch (e: any) { alert(e.message); }
+    finally { setGenerating(null); }
   };
 
   const unresolved = gaps.filter((g) => !g.resolved);
   const resolved = gaps.filter((g) => g.resolved);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">Skill Gaps</h2>
+    <div className="max-w-4xl">
+      <PageTitle>Skill Gaps</PageTitle>
 
-      <div className="mb-8">
-        <h3 className="text-sm font-semibold text-amber-400 mb-3">
-          Unresolved ({unresolved.length})
-        </h3>
-        <div className="space-y-3">
+      <div className="mb-6">
+        <h3 className="text-xs font-medium mb-3" style={{ color: "var(--accent)" }}>Unresolved ({unresolved.length})</h3>
+        <div className="space-y-2">
           {unresolved.map((g) => (
-            <div key={g.id} className="bg-gray-900 border border-amber-900/50 rounded-lg p-4">
+            <Card key={g.id} className="border-[rgba(229,162,16,0.15)]">
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-amber-400 font-medium">△</span>
-                    <h3 className="font-medium font-mono">{g.skillName}</h3>
-                  </div>
-                  <p className="text-sm text-gray-400">{g.triggerContext}</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Detected: {new Date(g.createdAt).toLocaleString()}
-                  </p>
+                <div>
+                  <span className="text-sm font-mono font-medium" style={{ color: "var(--text-primary)" }}>{g.skillName}</span>
+                  <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>{g.triggerContext}</p>
+                  <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>{new Date(g.createdAt).toLocaleString()}</p>
                 </div>
-                <button
-                  onClick={() => generate(g.id)}
-                  disabled={generating === g.id}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-sm font-medium disabled:opacity-50 ml-4"
-                >
-                  {generating === g.id ? "Generating..." : "Generate Stub"}
-                </button>
+                <Btn variant="primary" onClick={() => generate(g.id)} disabled={generating === g.id}>
+                  {generating === g.id ? "..." : "Generate Stub"}
+                </Btn>
               </div>
-            </div>
+            </Card>
           ))}
-          {unresolved.length === 0 && (
-            <p className="text-gray-600 text-sm">No unresolved skill gaps. System is complete.</p>
-          )}
+          {unresolved.length === 0 && <EmptyState>No unresolved gaps.</EmptyState>}
         </div>
       </div>
 
       {resolved.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold text-green-400 mb-3">
-            Resolved ({resolved.length})
-          </h3>
-          <div className="space-y-3">
+          <h3 className="text-xs font-medium mb-3" style={{ color: "var(--text-muted)" }}>Resolved ({resolved.length})</h3>
+          <div className="space-y-2">
             {resolved.map((g) => (
-              <div key={g.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4 opacity-70">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-green-400">✓</span>
-                  <h3 className="font-medium font-mono">{g.skillName}</h3>
+              <Card key={g.id} className="opacity-60">
+                <div className="flex items-center gap-2">
+                  <Badge color="green">resolved</Badge>
+                  <span className="text-sm font-mono" style={{ color: "var(--text-secondary)" }}>{g.skillName}</span>
                 </div>
-                <p className="text-sm text-gray-400">{g.triggerContext}</p>
-                {g.generatedPath && (
-                  <p className="text-xs text-gray-600 mt-1 font-mono">{g.generatedPath}</p>
-                )}
-              </div>
+                {g.generatedPath && <p className="text-[10px] font-mono mt-1" style={{ color: "var(--text-muted)" }}>{g.generatedPath}</p>}
+              </Card>
             ))}
           </div>
         </div>

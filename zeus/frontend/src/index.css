@@ -1,1 +1,40 @@
 @import "tailwindcss";
+
+:root {
+  --bg-root: #08080c;
+  --bg-surface: #0e0e14;
+  --bg-card: #13131a;
+  --bg-input: #18181f;
+  --border: #1e1e28;
+  --border-hover: #2a2a36;
+  --text-primary: #e4e4e8;
+  --text-secondary: #8b8b96;
+  --text-muted: #5a5a66;
+  --accent: #e5a210;
+  --accent-dim: #c48a0e;
+  --accent-bg: rgba(229, 162, 16, 0.08);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1e1e28 transparent;
+}
+
+body {
+  background: var(--bg-root);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+input, textarea, select {
+  outline: none;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--accent) !important;
+}
+
+::selection {
+  background: rgba(229, 162, 16, 0.25);
+}

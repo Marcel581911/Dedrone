@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { Link } from "react-router-dom";
+import { Card, PageTitle, Btn, Badge, Input, EmptyState } from "../components/ui";
 
 export default function Agents() {
   const [agents, setAgents] = useState<any[]>([]);
@@ -20,87 +21,62 @@ export default function Agents() {
 
   const remove = async (id: string) => {
     if (!confirm("Delete this agent?")) return;
-    await api.deleteAgent(id);
-    load();
+    try { await api.deleteAgent(id); load(); } catch (e: any) { alert(e.message); }
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">Agents</h2>
-        <button
-          onClick={() => setShowCreate(!showCreate)}
-          className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-sm font-medium transition-colors"
-        >
-          + New Agent
-        </button>
+    <div className="max-w-4xl">
+      <div className="flex items-center justify-between mb-5">
+        <PageTitle>Agents</PageTitle>
+        <Btn variant="primary" onClick={() => setShowCreate(!showCreate)}>+ New Agent</Btn>
       </div>
 
       {showCreate && (
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 mb-6">
-          <h3 className="text-sm font-semibold text-gray-400 mb-3">Create Agent</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <input
-              placeholder="Name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
-            />
-            <input
-              placeholder="Role"
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm"
-            />
-            <input
-              placeholder="Mission"
-              value={form.mission}
-              onChange={(e) => setForm({ ...form, mission: e.target.value })}
-              className="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm col-span-2"
-            />
-            <input
-              placeholder="Description"
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm col-span-2"
-            />
+        <Card className="mb-5">
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <Input placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <Input placeholder="Role" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
+            <Input placeholder="Mission" value={form.mission} onChange={(e) => setForm({ ...form, mission: e.target.value })} className="col-span-2" />
+            <Input placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="col-span-2" />
           </div>
-          <div className="flex gap-2 mt-4">
-            <button onClick={create} className="px-4 py-2 bg-green-700 hover:bg-green-600 rounded text-sm">Create</button>
-            <button onClick={() => setShowCreate(false)} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm">Cancel</button>
+          <div className="flex gap-2">
+            <Btn variant="primary" onClick={create}>Create</Btn>
+            <Btn onClick={() => setShowCreate(false)}>Cancel</Btn>
           </div>
-        </div>
+        </Card>
       )}
 
-      <div className="grid gap-4">
+      <div className="space-y-2">
         {agents.map((a) => (
-          <div key={a.id} className="bg-gray-900 border border-gray-800 rounded-lg p-5 hover:border-gray-700 transition-colors">
-            <div className="flex items-start justify-between">
-              <Link to={`/agents/${a.id}`} className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-lg font-semibold">{a.name}</h3>
-                  <span className={`text-xs px-2 py-0.5 rounded ${a.enabled ? "bg-green-900/50 text-green-400" : "bg-red-900/50 text-red-400"}`}>
-                    {a.enabled ? "Active" : "Disabled"}
-                  </span>
+          <Link key={a.id} to={`/agents/${a.id}`}>
+            <div className="rounded-lg border p-4 transition-colors hover:border-[var(--border-hover)]"
+              style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{a.name}</span>
+                    <Badge color={a.enabled ? "green" : "red"}>{a.enabled ? "Active" : "Off"}</Badge>
+                    {a.isSystem && <Badge color="purple">System</Badge>}
+                  </div>
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    {a.role}{a.mission ? ` — ${a.mission}` : ""}
+                  </p>
+                  <div className="flex gap-2 mt-1.5">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "var(--bg-input)", color: "var(--text-muted)" }}>{a.model}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "var(--bg-input)", color: "var(--text-muted)" }}>{a.agentSkills?.length || 0} skills</span>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-400">{a.role} — {a.mission}</p>
-                <div className="flex gap-2 mt-2">
-                  <span className="text-xs bg-gray-800 px-2 py-0.5 rounded text-gray-500">{a.model}</span>
-                  <span className="text-xs bg-gray-800 px-2 py-0.5 rounded text-gray-500">
-                    {a.agentSkills?.length || 0} skills
-                  </span>
-                </div>
-              </Link>
-              <button
-                onClick={() => remove(a.id)}
-                className="text-gray-600 hover:text-red-400 text-sm ml-4"
-              >
-                Delete
-              </button>
+                {!a.isSystem && (
+                  <button onClick={(e) => { e.preventDefault(); remove(a.id); }}
+                    className="text-xs opacity-30 hover:opacity-100 transition-opacity" style={{ color: "#f87171" }}>
+                    Delete
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          </Link>
         ))}
-        {agents.length === 0 && <p className="text-gray-600">No agents yet. Create one above.</p>}
+        {agents.length === 0 && <EmptyState>No agents yet.</EmptyState>}
       </div>
     </div>
   );

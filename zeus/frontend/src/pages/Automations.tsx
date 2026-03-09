@@ -1,17 +1,15 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { Card, PageTitle, Btn, Badge, Input, Label, EmptyState } from "../components/ui";
 
 export default function Automations() {
   const [automations, setAutomations] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ what: "", systems: "", frequency: "", dataSource: "", delivery: "" });
-  const [tab, setTab] = useState<"automations" | "scheduled">("automations");
+  const [tab, setTab] = useState<"auto" | "tasks">("auto");
 
-  const load = () => {
-    api.getAutomations().then(setAutomations);
-    api.getScheduledTasks().then(setTasks);
-  };
+  const load = () => { api.getAutomations().then(setAutomations); api.getScheduledTasks().then(setTasks); };
   useEffect(() => { load(); }, []);
 
   const create = async () => {
@@ -22,175 +20,99 @@ export default function Automations() {
     load();
   };
 
-  const testAuto = async (id: string) => {
-    const result = await api.testAutomation(id);
-    if (!result.success) alert(`Test failed: ${result.error}`);
-    load();
-  };
-
-  const confirmAuto = async (id: string) => {
-    await api.confirmAutomation(id);
-    load();
-  };
-
-  const removeAuto = async (id: string) => {
-    if (!confirm("Delete this automation?")) return;
-    await api.deleteAutomation(id);
-    load();
-  };
-
-  const toggleTask = async (id: string, enabled: boolean) => {
-    await api.updateScheduledTask(id, { enabled: !enabled });
-    load();
-  };
-
-  const statusColors: Record<string, string> = {
-    draft: "bg-gray-700/50 text-gray-400",
-    pending: "bg-blue-900/50 text-blue-400",
-    processing: "bg-yellow-900/50 text-yellow-400",
-    tested: "bg-purple-900/50 text-purple-400",
-    active: "bg-green-900/50 text-green-400",
-    failed: "bg-red-900/50 text-red-400",
+  const statusColor = (s: string): "blue" | "amber" | "green" | "red" | "purple" | "gray" => {
+    const m: Record<string, "blue" | "amber" | "green" | "red" | "purple" | "gray"> = { pending: "blue", processing: "amber", tested: "purple", active: "green", failed: "red" };
+    return m[s] || "gray";
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">Automations</h2>
-        <button onClick={() => setShowCreate(!showCreate)}
-          className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-sm font-medium">
-          + New Automation
-        </button>
+    <div className="max-w-4xl">
+      <div className="flex items-center justify-between mb-5">
+        <PageTitle>Automations</PageTitle>
+        <Btn variant="primary" onClick={() => setShowCreate(!showCreate)}>+ New</Btn>
       </div>
 
-      <div className="flex gap-2 mb-6">
-        <button onClick={() => setTab("automations")}
-          className={`px-4 py-2 rounded text-sm ${tab === "automations" ? "bg-amber-600 text-white" : "bg-gray-800 text-gray-400"}`}>
-          Automations ({automations.length})
-        </button>
-        <button onClick={() => setTab("scheduled")}
-          className={`px-4 py-2 rounded text-sm ${tab === "scheduled" ? "bg-amber-600 text-white" : "bg-gray-800 text-gray-400"}`}>
-          Scheduled Tasks ({tasks.length})
-        </button>
+      <div className="flex gap-1.5 mb-5">
+        {[["auto", `Automations (${automations.length})`], ["tasks", `Scheduled (${tasks.length})`]].map(([k, label]) => (
+          <button key={k} onClick={() => setTab(k as any)}
+            className="px-3 py-1.5 rounded-md text-xs transition-colors"
+            style={{ background: tab === k ? "var(--accent-bg)" : "var(--bg-input)", color: tab === k ? "var(--accent)" : "var(--text-muted)", border: `1px solid ${tab === k ? "var(--accent)" : "var(--border)"}` }}>
+            {label}
+          </button>
+        ))}
       </div>
 
       {showCreate && (
-        <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 mb-6">
-          <h3 className="text-sm font-semibold text-gray-400 mb-4">Create Automation</h3>
-          <p className="text-xs text-gray-500 mb-4">
-            Describe what you want automated. The Orchestrator will set it up and confirm when done.
-          </p>
+        <Card className="mb-5">
+          <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>Describe what to automate. The orchestrator will set it up.</p>
           <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">What should be done?</label>
-              <input value={form.what} onChange={(e) => setForm({ ...form, what: e.target.value })}
-                placeholder="e.g. Summarize my unread emails every morning"
-                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2.5 text-sm" />
-            </div>
+            <div><Label>What should be done?</Label><Input value={form.what} onChange={(e) => setForm({ ...form, what: e.target.value })} placeholder="e.g. Summarize unread emails every morning" /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Systems / Tools involved</label>
-                <input value={form.systems} onChange={(e) => setForm({ ...form, systems: e.target.value })}
-                  placeholder="e.g. Email, Slack, Database"
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2.5 text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Frequency</label>
-                <input value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })}
-                  placeholder="e.g. Every day at 8am, Every hour"
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2.5 text-sm" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Where to get the data</label>
-                <input value={form.dataSource} onChange={(e) => setForm({ ...form, dataSource: e.target.value })}
-                  placeholder="e.g. IMAP inbox, API endpoint, file"
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2.5 text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">How/where to deliver results</label>
-                <input value={form.delivery} onChange={(e) => setForm({ ...form, delivery: e.target.value })}
-                  placeholder="e.g. Email me, Telegram, Dashboard"
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2.5 text-sm" />
-              </div>
+              <div><Label>Systems</Label><Input value={form.systems} onChange={(e) => setForm({ ...form, systems: e.target.value })} placeholder="Email, Slack..." /></div>
+              <div><Label>Frequency</Label><Input value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })} placeholder="Daily at 8am" /></div>
+              <div><Label>Data source</Label><Input value={form.dataSource} onChange={(e) => setForm({ ...form, dataSource: e.target.value })} placeholder="IMAP inbox" /></div>
+              <div><Label>Delivery</Label><Input value={form.delivery} onChange={(e) => setForm({ ...form, delivery: e.target.value })} placeholder="Email me" /></div>
             </div>
           </div>
-          <div className="flex gap-2 mt-4">
-            <button onClick={create} className="px-4 py-2 bg-green-700 hover:bg-green-600 rounded text-sm">Create & Assign</button>
-            <button onClick={() => setShowCreate(false)} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-sm">Cancel</button>
-          </div>
-        </div>
+          <div className="flex gap-2 mt-4"><Btn variant="primary" onClick={create}>Create & Assign</Btn><Btn onClick={() => setShowCreate(false)}>Cancel</Btn></div>
+        </Card>
       )}
 
-      {tab === "automations" && (
-        <div className="space-y-3">
+      {tab === "auto" && (
+        <div className="space-y-2">
           {automations.map((a) => (
-            <div key={a.id} className="bg-gray-900 border border-gray-800 rounded-lg p-5">
-              <div className="flex items-start justify-between mb-3">
+            <Card key={a.id}>
+              <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="font-medium">{a.what}</h3>
-                    <span className={`text-xs px-2 py-0.5 rounded ${statusColors[a.status] || ""}`}>{a.status}</span>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{a.what}</span>
+                    <Badge color={statusColor(a.status)}>{a.status}</Badge>
                   </div>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-gray-400">
-                    {a.systems && <div><span className="text-gray-600">Systems:</span> {a.systems}</div>}
-                    {a.frequency && <div><span className="text-gray-600">Frequency:</span> {a.frequency}</div>}
-                    {a.dataSource && <div><span className="text-gray-600">Data source:</span> {a.dataSource}</div>}
-                    {a.delivery && <div><span className="text-gray-600">Delivery:</span> {a.delivery}</div>}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                    {a.systems && <span>Systems: {a.systems}</span>}
+                    {a.frequency && <span>Freq: {a.frequency}</span>}
+                    {a.dataSource && <span>Source: {a.dataSource}</span>}
+                    {a.delivery && <span>Delivery: {a.delivery}</span>}
                   </div>
+                  {a.testResult && (
+                    <div className="mt-2 rounded p-2 text-[11px]" style={{ background: "var(--bg-input)", color: "var(--text-secondary)" }}>
+                      {a.testResult.slice(0, 300)}
+                    </div>
+                  )}
                 </div>
-                <div className="flex gap-2 ml-4">
-                  {a.status !== "active" && (
-                    <button onClick={() => testAuto(a.id)}
-                      className="text-xs px-3 py-1 bg-purple-900/30 text-purple-400 rounded hover:bg-purple-900/50">Test</button>
-                  )}
-                  {(a.status === "tested" || a.status === "processing") && (
-                    <button onClick={() => confirmAuto(a.id)}
-                      className="text-xs px-3 py-1 bg-green-900/30 text-green-400 rounded hover:bg-green-900/50">Confirm</button>
-                  )}
-                  <button onClick={() => removeAuto(a.id)}
-                    className="text-xs text-gray-600 hover:text-red-400">Delete</button>
+                <div className="flex gap-1.5 ml-3">
+                  {a.status !== "active" && <Btn variant="ghost" onClick={async () => { await api.testAutomation(a.id); load(); }}>Test</Btn>}
+                  {(a.status === "tested" || a.status === "processing") && <Btn variant="ghost" onClick={async () => { await api.confirmAutomation(a.id); load(); }}>Confirm</Btn>}
+                  <button onClick={async () => { if (confirm("Delete?")) { await api.deleteAutomation(a.id); load(); } }}
+                    className="text-[10px] opacity-30 hover:opacity-100 px-2" style={{ color: "#f87171" }}>Delete</button>
                 </div>
               </div>
-              {a.testResult && (
-                <div className="mt-3 bg-gray-800 rounded p-3 text-sm text-gray-300">
-                  <p className="text-xs text-gray-500 mb-1">Test result:</p>
-                  <p className="whitespace-pre-wrap text-xs">{a.testResult.slice(0, 500)}</p>
-                </div>
-              )}
-            </div>
+            </Card>
           ))}
-          {automations.length === 0 && <p className="text-gray-600 text-sm">No automations yet. Create one above.</p>}
+          {automations.length === 0 && <EmptyState>No automations yet.</EmptyState>}
         </div>
       )}
 
-      {tab === "scheduled" && (
-        <div className="space-y-3">
+      {tab === "tasks" && (
+        <div className="space-y-2">
           {tasks.map((t) => (
-            <div key={t.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+            <Card key={t.id}>
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-medium text-sm">{t.name}</h4>
-                    <span className={`text-xs px-2 py-0.5 rounded ${t.enabled ? "bg-green-900/50 text-green-400" : "bg-red-900/50 text-red-400"}`}>
-                      {t.enabled ? "Active" : "Paused"}
-                    </span>
-                    <span className="text-xs text-gray-600">every {t.intervalMin}min</span>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-sm font-medium font-mono" style={{ color: "var(--text-primary)" }}>{t.name}</span>
+                    <Badge color={t.enabled ? "green" : "red"}>{t.enabled ? "Active" : "Paused"}</Badge>
+                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>every {t.intervalMin}min</span>
                   </div>
-                  <p className="text-xs text-gray-500">{t.description}</p>
-                  {t.lastRunAt && (
-                    <p className="text-xs text-gray-600 mt-1">
-                      Last run: {new Date(t.lastRunAt).toLocaleString()} — {t.lastResult.slice(0, 100)}
-                    </p>
-                  )}
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>{t.description}</p>
+                  {t.lastRunAt && <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>Last: {new Date(t.lastRunAt).toLocaleString()} — {t.lastResult.slice(0, 80)}</p>}
                 </div>
-                <button onClick={() => toggleTask(t.id, t.enabled)}
-                  className={`text-xs px-3 py-1 rounded ${t.enabled ? "bg-red-900/30 text-red-400" : "bg-green-900/30 text-green-400"}`}>
+                <button onClick={async () => { await api.updateScheduledTask(t.id, { enabled: !t.enabled }); load(); }}
+                  className="text-[10px] px-2 py-1 rounded" style={{ background: t.enabled ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: t.enabled ? "#f87171" : "#4ade80" }}>
                   {t.enabled ? "Pause" : "Resume"}
                 </button>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}
