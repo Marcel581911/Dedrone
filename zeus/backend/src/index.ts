@@ -15,6 +15,7 @@ import { telegramRoutes } from "./routes/telegram.js";
 import { authRoutes } from "./routes/auth.js";
 import { automationRoutes } from "./routes/automations.js";
 import { emailRoutes } from "./routes/email.js";
+import { moduleRoutes } from "./routes/modules.js";
 import { log } from "./logger.js";
 import { startWorker } from "./services/worker.js";
 import { startBot } from "./services/telegram.js";
@@ -64,6 +65,7 @@ await app.register(dashboardRoutes);
 await app.register(telegramRoutes);
 await app.register(automationRoutes);
 await app.register(emailRoutes);
+await app.register(moduleRoutes);
 
 // Serve frontend build (production mode)
 const frontendDist = path.resolve(import.meta.dirname, "../../frontend/dist");

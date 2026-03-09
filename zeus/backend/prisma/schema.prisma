@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:../../data/zeus.db"
+  url      = env("DATABASE_URL")
 }
 
 model Setting {
@@ -31,6 +31,7 @@ model Agent {
   memories      Memory[]
   tickets       Ticket[]
   isSystem           Boolean        @default(false)
+  moduleSlug         String?
   agentSkills        AgentSkill[]
   telegramPairings   TelegramPairing[]
   scheduledTasks     ScheduledTask[]
@@ -176,6 +177,22 @@ model EmailMessage {
   attachments String   @default("[]")
   direction   String   @default("inbound")
   createdAt   DateTime @default(now())
+}
+
+model Module {
+  id            String   @id @default(uuid())
+  slug          String   @unique
+  name          String
+  description   String   @default("")
+  version       String   @default("1.0.0")
+  author        String   @default("")
+  icon          String   @default("")
+  status        String   @default("available")
+  config        String   @default("{}")
+  manifest      String   @default("{}")
+  installedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model LogEntry {

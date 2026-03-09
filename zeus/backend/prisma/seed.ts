@@ -165,15 +165,82 @@ async function main() {
     });
   }
 
+  // ── Module Registry (available to install) ───
+  const moduleDefinitions = [
+    {
+      slug: "finance",
+      name: "Finance Manager",
+      description: "Track expenses, budgets, accounts, and generate financial reports.",
+      icon: "$",
+      manifest: {
+        agents: [{ name: "Finance Agent", role: "Financial analyst", mission: "Track and analyze personal finances", systemPrompt: "You are a finance assistant. Help the user track expenses, manage budgets, and provide financial insights.", tags: ["finance"] }],
+        skills: [
+          { name: "log_expense", description: "Log an expense with amount, category, and date", inputSchema: { type: "object", properties: { amount: { type: "number" }, category: { type: "string" }, description: { type: "string" } }, required: ["amount", "category"] } },
+          { name: "budget_report", description: "Generate a budget summary report", inputSchema: { type: "object", properties: { period: { type: "string" } } } },
+        ],
+        scheduledTasks: [{ name: "weekly_finance_report", description: "Generate weekly spending summary", intervalMin: 10080 }],
+        pages: ["dashboard", "transactions", "budgets"],
+      },
+    },
+    {
+      slug: "travel",
+      name: "Trip Planner",
+      description: "Plan trips, manage itineraries, track bookings, and organize travel documents.",
+      icon: "✈",
+      manifest: {
+        agents: [{ name: "Travel Agent", role: "Travel planner", mission: "Plan and organize trips", systemPrompt: "You are a travel planning assistant. Help plan trips, organize itineraries, and manage bookings.", tags: ["travel"] }],
+        skills: [
+          { name: "create_itinerary", description: "Create a travel itinerary", inputSchema: { type: "object", properties: { destination: { type: "string" }, startDate: { type: "string" }, endDate: { type: "string" } }, required: ["destination"] } },
+          { name: "find_flights", description: "Search for flight options", inputSchema: { type: "object", properties: { from: { type: "string" }, to: { type: "string" }, date: { type: "string" } }, required: ["from", "to"] } },
+        ],
+        pages: ["trips", "itineraries", "bookings"],
+      },
+    },
+    {
+      slug: "school",
+      name: "School Manager",
+      description: "Track assignments, grades, schedules, and school activities for kids.",
+      icon: "📚",
+      manifest: {
+        agents: [{ name: "School Agent", role: "Education assistant", mission: "Help manage school tasks and schedules", systemPrompt: "You are a school management assistant. Help track homework, assignments, grades, and school schedules.", tags: ["school", "education"] }],
+        skills: [
+          { name: "add_assignment", description: "Add a homework assignment", inputSchema: { type: "object", properties: { subject: { type: "string" }, title: { type: "string" }, dueDate: { type: "string" } }, required: ["subject", "title"] } },
+          { name: "grade_report", description: "Generate a grade summary", inputSchema: { type: "object", properties: { student: { type: "string" } } } },
+        ],
+        pages: ["assignments", "grades", "schedule"],
+      },
+    },
+    {
+      slug: "health",
+      name: "Health & Wellness",
+      description: "Track health metrics, medications, appointments, and wellness goals.",
+      icon: "❤",
+      manifest: {
+        agents: [{ name: "Health Agent", role: "Health assistant", mission: "Help track health and wellness data", systemPrompt: "You are a health and wellness assistant. Help track medications, appointments, and health metrics. Never provide medical diagnoses.", tags: ["health"] }],
+        skills: [
+          { name: "log_health_metric", description: "Log a health measurement", inputSchema: { type: "object", properties: { metric: { type: "string" }, value: { type: "number" }, unit: { type: "string" } }, required: ["metric", "value"] } },
+        ],
+        pages: ["dashboard", "metrics", "appointments"],
+      },
+    },
+  ];
+
+  for (const m of moduleDefinitions) {
+    await prisma.module.upsert({
+      where: { slug: m.slug },
+      update: {},
+      create: { slug: m.slug, name: m.name, description: m.description, icon: m.icon, manifest: JSON.stringify(m.manifest), status: "available" },
+    });
+  }
+
   await prisma.logEntry.create({
     data: { level: "info", source: "system", message: "ZEUS system initialized with seed data" },
   });
 
   console.log("Seed complete!");
-  console.log("  - 3 agents: System, Orchestrator (Zeus), Research Agent");
-  console.log("  - 8 skills: tickets, agents, email, automation, summarize");
-  console.log("  - 4 scheduled tasks: health, logs, stale tickets, email sync");
-  console.log("  - 1 skill gap: read_email_inbox");
+  console.log("  - 3 agents: System, Orchestrator, Research Agent");
+  console.log("  - 8 skills, 4 scheduled tasks, 1 skill gap");
+  console.log("  - 4 modules available: Finance, Travel, School, Health");
 }
 
 const ORCHESTRATOR_PROMPT = `You are Zeus — the central coordinator of the ZEUS agent runtime and personal AI assistant.

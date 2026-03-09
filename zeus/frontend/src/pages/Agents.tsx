@@ -48,7 +48,7 @@ export default function Agents() {
 
       <div className="space-y-2">
         {agents.map((a) => (
-          <Link key={a.id} to={`/agents/${a.id}`}>
+          <Link key={a.id} to={`/system/agents/${a.id}`}>
             <div className="rounded-lg border p-4 transition-colors hover:border-[var(--border-hover)]"
               style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
               <div className="flex items-center justify-between">

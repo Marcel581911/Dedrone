@@ -10,165 +10,84 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    if (err.error === "not_authenticated") {
-      window.dispatchEvent(new CustomEvent("zeus:logout"));
-    }
+    if (err.error === "not_authenticated") window.dispatchEvent(new CustomEvent("zeus:logout"));
     throw new Error(err.error || "Request failed");
   }
   return res.json();
 }
 
 export const api = {
-  // Auth
   authStatus: () => request<any>("/auth/status"),
   onboard: (password: string, vmAddress: string, userName?: string, assistantName?: string, assistantPersonality?: string) =>
-    request<any>("/auth/onboard", {
-      method: "POST",
-      body: JSON.stringify({ password, vmAddress, userName, assistantName, assistantPersonality }),
-    }),
-  login: (password: string) =>
-    request<any>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ password }),
-    }),
-  logout: () =>
-    request<any>("/auth/logout", { method: "POST" }),
+    request<any>("/auth/onboard", { method: "POST", body: JSON.stringify({ password, vmAddress, userName, assistantName, assistantPersonality }) }),
+  login: (password: string) => request<any>("/auth/login", { method: "POST", body: JSON.stringify({ password }) }),
+  logout: () => request<any>("/auth/logout", { method: "POST" }),
   changePassword: (currentPassword: string, newPassword: string) =>
-    request<any>("/auth/password", {
-      method: "PUT",
-      body: JSON.stringify({ currentPassword, newPassword }),
-    }),
-  updateVmAddress: (vmAddress: string) =>
-    request<any>("/auth/vm-address", {
-      method: "PUT",
-      body: JSON.stringify({ vmAddress }),
-    }),
+    request<any>("/auth/password", { method: "PUT", body: JSON.stringify({ currentPassword, newPassword }) }),
+  updateVmAddress: (vmAddress: string) => request<any>("/auth/vm-address", { method: "PUT", body: JSON.stringify({ vmAddress }) }),
 
-  // Dashboard
   dashboard: () => request<any>("/dashboard"),
-
-  // Settings
   getSettings: () => request<Record<string, string>>("/settings"),
-  updateSettings: (data: Record<string, string>) =>
-    request<any>("/settings", { method: "PUT", body: JSON.stringify(data) }),
+  updateSettings: (data: Record<string, string>) => request<any>("/settings", { method: "PUT", body: JSON.stringify(data) }),
   testConnection: () => request<any>("/settings/test", { method: "POST" }),
 
-  // Agents
   getAgents: () => request<any[]>("/agents"),
   getAgent: (id: string) => request<any>(`/agents/${id}`),
-  createAgent: (data: any) =>
-    request<any>("/agents", { method: "POST", body: JSON.stringify(data) }),
-  updateAgent: (id: string, data: any) =>
-    request<any>(`/agents/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  deleteAgent: (id: string) =>
-    request<any>(`/agents/${id}`, { method: "DELETE" }),
+  createAgent: (data: any) => request<any>("/agents", { method: "POST", body: JSON.stringify(data) }),
+  updateAgent: (id: string, data: any) => request<any>(`/agents/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteAgent: (id: string) => request<any>(`/agents/${id}`, { method: "DELETE" }),
 
-  // Agent skills
-  assignSkill: (agentId: string, skillId: string) =>
-    request<any>(`/agents/${agentId}/skills`, {
-      method: "POST",
-      body: JSON.stringify({ skillId }),
-    }),
-  removeSkill: (agentId: string, skillId: string) =>
-    request<any>(`/agents/${agentId}/skills/${skillId}`, { method: "DELETE" }),
+  assignSkill: (agentId: string, skillId: string) => request<any>(`/agents/${agentId}/skills`, { method: "POST", body: JSON.stringify({ skillId }) }),
+  removeSkill: (agentId: string, skillId: string) => request<any>(`/agents/${agentId}/skills/${skillId}`, { method: "DELETE" }),
 
-  // Conversations
-  getConversations: (agentId: string) =>
-    request<any[]>(`/agents/${agentId}/conversations`),
-  createConversation: (agentId: string, title?: string) =>
-    request<any>(`/agents/${agentId}/conversations`, {
-      method: "POST",
-      body: JSON.stringify({ title }),
-    }),
-  getMessages: (conversationId: string) =>
-    request<any[]>(`/conversations/${conversationId}/messages`),
-
-  // Chat
+  getConversations: (agentId: string) => request<any[]>(`/agents/${agentId}/conversations`),
+  createConversation: (agentId: string, title?: string) => request<any>(`/agents/${agentId}/conversations`, { method: "POST", body: JSON.stringify({ title }) }),
+  getMessages: (conversationId: string) => request<any[]>(`/conversations/${conversationId}/messages`),
   chat: (agentId: string, conversationId: string, message: string) =>
-    request<any>(`/agents/${agentId}/chat`, {
-      method: "POST",
-      body: JSON.stringify({ conversationId, message }),
-    }),
+    request<any>(`/agents/${agentId}/chat`, { method: "POST", body: JSON.stringify({ conversationId, message }) }),
 
-  // Memory
   getMemory: (agentId: string) => request<any[]>(`/agents/${agentId}/memory`),
-  addMemory: (agentId: string, data: any) =>
-    request<any>(`/agents/${agentId}/memory`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
+  addMemory: (agentId: string, data: any) => request<any>(`/agents/${agentId}/memory`, { method: "POST", body: JSON.stringify(data) }),
 
-  // Tickets
-  getTickets: (params?: Record<string, string>) => {
-    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-    return request<any[]>(`/tickets${qs}`);
-  },
-  getTicket: (id: string) => request<any>(`/tickets/${id}`),
-  createTicket: (data: any) =>
-    request<any>("/tickets", { method: "POST", body: JSON.stringify(data) }),
-  updateTicket: (id: string, data: any) =>
-    request<any>(`/tickets/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  deleteTicket: (id: string) =>
-    request<any>(`/tickets/${id}`, { method: "DELETE" }),
-  processTicket: () =>
-    request<any>("/tickets/process", { method: "POST" }),
+  getTickets: (params?: Record<string, string>) => { const qs = params ? "?" + new URLSearchParams(params).toString() : ""; return request<any[]>(`/tickets${qs}`); },
+  createTicket: (data: any) => request<any>("/tickets", { method: "POST", body: JSON.stringify(data) }),
+  updateTicket: (id: string, data: any) => request<any>(`/tickets/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteTicket: (id: string) => request<any>(`/tickets/${id}`, { method: "DELETE" }),
+  processTicket: () => request<any>("/tickets/process", { method: "POST" }),
 
-  // Skills
   getSkills: () => request<any[]>("/skills"),
-  getSkill: (id: string) => request<any>(`/skills/${id}`),
-  createSkill: (data: any) =>
-    request<any>("/skills", { method: "POST", body: JSON.stringify(data) }),
-  updateSkill: (id: string, data: any) =>
-    request<any>(`/skills/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  deleteSkill: (id: string) =>
-    request<any>(`/skills/${id}`, { method: "DELETE" }),
+  createSkill: (data: any) => request<any>("/skills", { method: "POST", body: JSON.stringify(data) }),
+  updateSkill: (id: string, data: any) => request<any>(`/skills/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteSkill: (id: string) => request<any>(`/skills/${id}`, { method: "DELETE" }),
 
-  // Skill Gaps
   getSkillGaps: () => request<any[]>("/skill-gaps"),
-  generateStub: (id: string) =>
-    request<any>(`/skill-gaps/${id}/generate`, { method: "POST" }),
+  generateStub: (id: string) => request<any>(`/skill-gaps/${id}/generate`, { method: "POST" }),
 
-  // Logs
-  getLogs: (params?: Record<string, string>) => {
-    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-    return request<any[]>(`/logs${qs}`);
-  },
+  getLogs: (params?: Record<string, string>) => { const qs = params ? "?" + new URLSearchParams(params).toString() : ""; return request<any[]>(`/logs${qs}`); },
   clearLogs: () => request<any>("/logs", { method: "DELETE" }),
 
-  // Telegram
   telegramStatus: () => request<any>("/telegram/status"),
   telegramStart: () => request<any>("/telegram/start", { method: "POST" }),
   telegramStop: () => request<any>("/telegram/stop", { method: "POST" }),
-  telegramPair: (agentId: string) =>
-    request<any>(`/telegram/pair/${agentId}`, { method: "POST" }),
+  telegramPair: (agentId: string) => request<any>(`/telegram/pair/${agentId}`, { method: "POST" }),
   telegramPairings: () => request<any[]>("/telegram/pairings"),
-  telegramUnpair: (id: string) =>
-    request<any>(`/telegram/pairings/${id}`, { method: "DELETE" }),
+  telegramUnpair: (id: string) => request<any>(`/telegram/pairings/${id}`, { method: "DELETE" }),
 
-  // Automations
   getAutomations: () => request<any[]>("/automations"),
-  createAutomation: (data: any) =>
-    request<any>("/automations", { method: "POST", body: JSON.stringify(data) }),
-  testAutomation: (id: string) =>
-    request<any>(`/automations/${id}/test`, { method: "POST" }),
-  confirmAutomation: (id: string) =>
-    request<any>(`/automations/${id}/confirm`, { method: "POST" }),
-  deleteAutomation: (id: string) =>
-    request<any>(`/automations/${id}`, { method: "DELETE" }),
-
-  // Scheduled tasks
+  createAutomation: (data: any) => request<any>("/automations", { method: "POST", body: JSON.stringify(data) }),
+  testAutomation: (id: string) => request<any>(`/automations/${id}/test`, { method: "POST" }),
+  confirmAutomation: (id: string) => request<any>(`/automations/${id}/confirm`, { method: "POST" }),
+  deleteAutomation: (id: string) => request<any>(`/automations/${id}`, { method: "DELETE" }),
   getScheduledTasks: () => request<any[]>("/scheduled-tasks"),
-  updateScheduledTask: (id: string, data: any) =>
-    request<any>(`/scheduled-tasks/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  updateScheduledTask: (id: string, data: any) => request<any>(`/scheduled-tasks/${id}`, { method: "PUT", body: JSON.stringify(data) }),
 
-  // Emails
-  getEmails: (params?: Record<string, string>) => {
-    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-    return request<any[]>(`/emails${qs}`);
-  },
+  getEmails: (params?: Record<string, string>) => { const qs = params ? "?" + new URLSearchParams(params).toString() : ""; return request<any[]>(`/emails${qs}`); },
   syncEmails: () => request<any>("/emails/sync", { method: "POST" }),
-  sendNewEmail: (to: string, subject: string, body: string) =>
-    request<any>("/emails/send", { method: "POST", body: JSON.stringify({ to, subject, body }) }),
+  sendNewEmail: (to: string, subject: string, body: string) => request<any>("/emails/send", { method: "POST", body: JSON.stringify({ to, subject, body }) }),
   testImap: () => request<any>("/emails/test-imap", { method: "POST" }),
   testSmtp: () => request<any>("/emails/test-smtp", { method: "POST" }),
+
+  getModules: () => request<any[]>("/modules"),
+  installModule: (slug: string) => request<any>(`/modules/${slug}/install`, { method: "POST" }),
+  uninstallModule: (slug: string) => request<any>(`/modules/${slug}/uninstall`, { method: "POST" }),
 };
