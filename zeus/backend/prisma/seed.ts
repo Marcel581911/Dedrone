@@ -52,6 +52,10 @@ async function main() {
       { to: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, ["to", "subject"]),
     create_automation: await upsertSkill("create_automation", "Create a new automation definition.",
       { what: { type: "string" }, systems: { type: "string" }, frequency: { type: "string" }, dataSource: { type: "string" }, delivery: { type: "string" } }, ["what"]),
+    create_agent: await upsertSkill("create_agent", "Create a new agent to handle specific tasks. Use when a specialized agent is needed.",
+      { name: { type: "string", description: "Agent name" }, role: { type: "string", description: "Agent role" }, mission: { type: "string", description: "What the agent does" }, description: { type: "string" } }, ["name", "role"]),
+    manage_agent: await upsertSkill("manage_agent", "Enable or disable an existing agent.",
+      { agentId: { type: "string" }, action: { type: "string", enum: ["enable", "disable"] } }, ["agentId", "action"]),
   };
 
   // ── Agents ──────────────────────────────────────
@@ -124,6 +128,8 @@ async function main() {
     [orchestrator.id, skills.read_emails.id],
     [orchestrator.id, skills.send_email.id],
     [orchestrator.id, skills.create_automation.id],
+    [orchestrator.id, skills.create_agent.id],
+    [orchestrator.id, skills.manage_agent.id],
     // Researcher gets summarization + email reading
     [researcher.id, skills.summarize_text.id],
     [researcher.id, skills.read_emails.id],

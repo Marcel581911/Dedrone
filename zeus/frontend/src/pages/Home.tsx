@@ -13,10 +13,26 @@ export default function Home() {
   const [activity, setActivity] = useState<any[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
 
+  const inputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
-    api.getAgents().then((agents) => {
+    api.getAgents().then(async (agents) => {
       const orch = agents.find((a: any) => a.id === "orchestrator-001") || agents.find((a: any) => a.role === "Coordinator");
-      if (orch) { setAgentId(orch.id); setAgentName(orch.name); loadConversations(orch.id); }
+      if (orch) {
+        setAgentId(orch.id);
+        setAgentName(orch.name);
+        const convs = await api.getConversations(orch.id);
+        setConvs(convs);
+        if (convs.length > 0) {
+          selectConv(convs[0]);
+        } else {
+          // Auto-create first conversation so user can type immediately
+          const c = await api.createConversation(orch.id);
+          setConvs([c]);
+          setActiveConv(c);
+        }
+        setTimeout(() => inputRef.current?.focus(), 200);
+      }
     });
     loadActivity();
     const timer = setInterval(loadActivity, 15000);
@@ -154,7 +170,7 @@ export default function Home() {
 
             <div className="shrink-0 border-t px-6 py-3" style={{ borderColor: "var(--border)" }}>
               <div className="max-w-3xl mx-auto flex gap-2">
-                <input value={input} onChange={(e) => setInput(e.target.value)}
+                <input ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
                   placeholder={`Message ${agentName}...`} disabled={sending}
                   className="flex-1 rounded-lg border px-4 py-2.5 text-sm"

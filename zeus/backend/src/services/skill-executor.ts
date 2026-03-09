@@ -150,6 +150,60 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
     };
   },
 
+  create_agent: async (args) => {
+    const name = String(args.name || "");
+    const role = String(args.role || "");
+    const mission = String(args.mission || "");
+    if (!name) return { success: false, data: {}, message: "Agent name is required." };
+
+    // Guardrails: limit total agents, prevent duplicates
+    const count = await prisma.agent.count();
+    if (count >= 20) return { success: false, data: {}, message: "Maximum 20 agents allowed. Disable unused agents first." };
+
+    const existing = await prisma.agent.findFirst({ where: { name } });
+    if (existing) return { success: false, data: {}, message: `Agent "${name}" already exists.` };
+
+    const agent = await prisma.agent.create({
+      data: {
+        name,
+        description: String(args.description || ""),
+        role,
+        mission,
+        systemPrompt: String(args.systemPrompt || `You are ${name}, a ${role}. Your mission: ${mission}. Be helpful, structured, and thorough.`),
+        model: "gpt-4o-mini",
+        temperature: 0.7,
+        maxTokens: 2048,
+        enabled: true,
+        tags: JSON.stringify([role.toLowerCase().replace(/\s+/g, "-")]),
+      },
+    });
+
+    await log("info", "skill:create_agent", `Agent "${name}" created by Orchestrator`, { agentId: agent.id });
+    return {
+      success: true,
+      data: { agentId: agent.id, name },
+      message: `Agent "${name}" created (ID: ${agent.id}, role: ${role}). Ready to receive tasks.`,
+    };
+  },
+
+  manage_agent: async (args) => {
+    const agentId = String(args.agentId || "");
+    const action = String(args.action || "");
+    if (!agentId || !action) return { success: false, data: {}, message: "agentId and action (enable/disable) are required." };
+
+    const agent = await prisma.agent.findUnique({ where: { id: agentId } });
+    if (!agent) return { success: false, data: {}, message: `Agent ${agentId} not found.` };
+
+    // Guardrails: cannot disable system or orchestrator
+    if (agent.isSystem) return { success: false, data: {}, message: "Cannot modify the System agent." };
+    if (agent.id === "orchestrator-001") return { success: false, data: {}, message: "Cannot disable the Orchestrator." };
+
+    const enabled = action === "enable";
+    await prisma.agent.update({ where: { id: agentId }, data: { enabled } });
+    await log("info", "skill:manage_agent", `Agent "${agent.name}" ${enabled ? "enabled" : "disabled"}`, { agentId });
+    return { success: true, data: { agentId, enabled }, message: `Agent "${agent.name}" ${enabled ? "enabled" : "disabled"}.` };
+  },
+
   list_tickets: async (args) => {
     const status = args.status ? String(args.status) : undefined;
     const where: any = {};
