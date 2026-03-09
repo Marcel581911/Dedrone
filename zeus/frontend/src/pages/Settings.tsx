@@ -229,6 +229,9 @@ export default function Settings() {
         )}
       </div>
 
+      {/* Email */}
+      <EmailSection settings={settings} onSave={save} />
+
       {/* Save */}
       <button
         onClick={save}
@@ -240,6 +243,103 @@ export default function Settings() {
 
       {/* Access & Security */}
       <AccessSection />
+    </div>
+  );
+}
+
+function EmailSection({ settings, onSave }: { settings: Record<string, string>; onSave: () => void }) {
+  const [form, setForm] = useState({
+    email_imap_host: "", email_imap_port: "993", email_imap_user: "", email_imap_pass: "",
+    email_smtp_host: "", email_smtp_port: "587", email_smtp_user: "", email_smtp_pass: "",
+    email_from_address: "", email_from_name: "ZEUS",
+  });
+  const [imapResult, setImapResult] = useState<any>(null);
+  const [smtpResult, setSmtpResult] = useState<any>(null);
+  const [testing, setTesting] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const f = { ...form };
+    for (const key of Object.keys(f) as (keyof typeof f)[]) {
+      if (settings[key]) f[key] = settings[key];
+    }
+    setForm(f);
+  }, [settings]);
+
+  const saveEmail = async () => {
+    setSaving(true);
+    try {
+      await api.updateSettings(form);
+      onSave();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const testImap = async () => {
+    setTesting("imap"); setImapResult(null);
+    try { setImapResult(await api.testImap()); } catch (e: any) { setImapResult({ success: false, error: e.message }); }
+    setTesting("");
+  };
+
+  const testSmtp = async () => {
+    setTesting("smtp"); setSmtpResult(null);
+    try { setSmtpResult(await api.testSmtp()); } catch (e: any) { setSmtpResult({ success: false, error: e.message }); }
+    setTesting("");
+  };
+
+  const field = (label: string, key: keyof typeof form, type = "text") => (
+    <div>
+      <label className="block text-xs text-gray-500 mb-1">{label}</label>
+      <input type={type} value={form[key]}
+        onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+        className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm" />
+    </div>
+  );
+
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
+      <h3 className="text-lg font-semibold mb-4">Email (IMAP / SMTP)</h3>
+      <div className="grid grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-400">Incoming (IMAP)</h4>
+          {field("IMAP Host", "email_imap_host")}
+          {field("Port", "email_imap_port")}
+          {field("Username", "email_imap_user")}
+          {field("Password", "email_imap_pass", "password")}
+          <button onClick={testImap} disabled={testing === "imap"}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-xs disabled:opacity-50">
+            {testing === "imap" ? "Testing..." : "Test IMAP"}
+          </button>
+          {imapResult && (
+            <p className={`text-xs ${imapResult.success ? "text-green-400" : "text-red-400"}`}>
+              {imapResult.success ? `Connected (${imapResult.count} messages)` : imapResult.error}
+            </p>
+          )}
+        </div>
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-400">Outgoing (SMTP)</h4>
+          {field("SMTP Host", "email_smtp_host")}
+          {field("Port", "email_smtp_port")}
+          {field("Username", "email_smtp_user")}
+          {field("Password", "email_smtp_pass", "password")}
+          {field("From Name", "email_from_name")}
+          {field("From Address", "email_from_address")}
+          <button onClick={testSmtp} disabled={testing === "smtp"}
+            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-xs disabled:opacity-50">
+            {testing === "smtp" ? "Testing..." : "Test SMTP"}
+          </button>
+          {smtpResult && (
+            <p className={`text-xs ${smtpResult.success ? "text-green-400" : "text-red-400"}`}>
+              {smtpResult.success ? "SMTP connected" : smtpResult.error}
+            </p>
+          )}
+        </div>
+      </div>
+      <button onClick={saveEmail} disabled={saving}
+        className="mt-4 px-4 py-2 bg-green-700 hover:bg-green-600 rounded text-sm disabled:opacity-50">
+        {saving ? "Saving..." : "Save Email Settings"}
+      </button>
     </div>
   );
 }

@@ -19,10 +19,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   // Auth
   authStatus: () => request<any>("/auth/status"),
-  onboard: (password: string, vmAddress: string) =>
+  onboard: (password: string, vmAddress: string, userName?: string, assistantName?: string, assistantPersonality?: string) =>
     request<any>("/auth/onboard", {
       method: "POST",
-      body: JSON.stringify({ password, vmAddress }),
+      body: JSON.stringify({ password, vmAddress, userName, assistantName, assistantPersonality }),
     }),
   login: (password: string) =>
     request<any>("/auth/login", {
@@ -142,4 +142,31 @@ export const api = {
   telegramPairings: () => request<any[]>("/telegram/pairings"),
   telegramUnpair: (id: string) =>
     request<any>(`/telegram/pairings/${id}`, { method: "DELETE" }),
+
+  // Automations
+  getAutomations: () => request<any[]>("/automations"),
+  createAutomation: (data: any) =>
+    request<any>("/automations", { method: "POST", body: JSON.stringify(data) }),
+  testAutomation: (id: string) =>
+    request<any>(`/automations/${id}/test`, { method: "POST" }),
+  confirmAutomation: (id: string) =>
+    request<any>(`/automations/${id}/confirm`, { method: "POST" }),
+  deleteAutomation: (id: string) =>
+    request<any>(`/automations/${id}`, { method: "DELETE" }),
+
+  // Scheduled tasks
+  getScheduledTasks: () => request<any[]>("/scheduled-tasks"),
+  updateScheduledTask: (id: string, data: any) =>
+    request<any>(`/scheduled-tasks/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+
+  // Emails
+  getEmails: (params?: Record<string, string>) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return request<any[]>(`/emails${qs}`);
+  },
+  syncEmails: () => request<any>("/emails/sync", { method: "POST" }),
+  sendNewEmail: (to: string, subject: string, body: string) =>
+    request<any>("/emails/send", { method: "POST", body: JSON.stringify({ to, subject, body }) }),
+  testImap: () => request<any>("/emails/test-imap", { method: "POST" }),
+  testSmtp: () => request<any>("/emails/test-smtp", { method: "POST" }),
 };

@@ -13,9 +13,12 @@ import { logRoutes } from "./routes/logs.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
 import { telegramRoutes } from "./routes/telegram.js";
 import { authRoutes } from "./routes/auth.js";
+import { automationRoutes } from "./routes/automations.js";
+import { emailRoutes } from "./routes/email.js";
 import { log } from "./logger.js";
 import { startWorker } from "./services/worker.js";
 import { startBot } from "./services/telegram.js";
+import { startScheduler } from "./services/scheduler.js";
 import { validateSession, isOnboarded } from "./services/auth.js";
 import { prisma } from "./db.js";
 
@@ -59,6 +62,8 @@ await app.register(chatRoutes);
 await app.register(logRoutes);
 await app.register(dashboardRoutes);
 await app.register(telegramRoutes);
+await app.register(automationRoutes);
+await app.register(emailRoutes);
 
 // Serve frontend build (production mode)
 const frontendDist = path.resolve(import.meta.dirname, "../../frontend/dist");
@@ -87,6 +92,7 @@ try {
   await log("info", "system", `ZEUS Backend started on ${address}`);
 
   startWorker();
+  startScheduler();
 
   const tgToken = await prisma.setting.findUnique({ where: { key: "telegram_bot_token" } });
   if (tgToken?.value) {

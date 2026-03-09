@@ -9,13 +9,19 @@ import {
   setVmAddress,
 } from "../services/auth.js";
 import { log } from "../logger.js";
+import { prisma } from "../db.js";
 
 export async function authRoutes(app: FastifyInstance) {
   // Check if onboarding is complete
   app.get("/api/auth/status", async () => {
     const onboarded = await isOnboarded();
     const vmAddress = await getVmAddress();
-    return { onboarded, vmAddress };
+    const settings = await prisma.setting.findMany({
+      where: { key: { in: ["user_name", "assistant_name", "assistant_personality"] } },
+    });
+    const profile: Record<string, string> = {};
+    for (const s of settings) profile[s.key] = s.value;
+    return { onboarded, vmAddress, ...profile };
   });
 
   // Onboarding: set password + VM address for the first time
@@ -25,7 +31,10 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Already onboarded. Use login instead." });
     }
 
-    const { password, vmAddress } = req.body as { password: string; vmAddress: string };
+    const { password, vmAddress, userName, assistantName, assistantPersonality } = req.body as {
+      password: string; vmAddress: string; userName?: string;
+      assistantName?: string; assistantPersonality?: string;
+    };
     if (!password || password.length < 4) {
       return reply.status(400).send({ error: "Password must be at least 4 characters." });
     }
@@ -36,6 +45,41 @@ export async function authRoutes(app: FastifyInstance) {
     await setupPassword(password);
     await setVmAddress(vmAddress);
 
+    // Save personalization
+    const personalSettings: [string, string][] = [
+      ["user_name", userName || ""],
+      ["assistant_name", assistantName || "Zeus"],
+      ["assistant_personality", assistantPersonality || ""],
+    ];
+    for (const [key, value] of personalSettings) {
+      await prisma.setting.upsert({
+        where: { key },
+        update: { value },
+        create: { key, value },
+      });
+    }
+
+    // Update Orchestrator with personality
+    if (assistantName || assistantPersonality) {
+      const orchestrator = await prisma.agent.findUnique({ where: { id: "orchestrator-001" } });
+      if (orchestrator) {
+        let prompt = orchestrator.systemPrompt;
+        if (assistantName) {
+          prompt = prompt.replace(/You are the Orchestrator/, `You are ${assistantName}, the Orchestrator`);
+        }
+        if (assistantPersonality) {
+          prompt += `\n\n## Personality\n${assistantPersonality}`;
+        }
+        if (userName) {
+          prompt += `\n\n## User\nYour user's name is ${userName}. Address them by name when appropriate.`;
+        }
+        await prisma.agent.update({
+          where: { id: "orchestrator-001" },
+          data: { systemPrompt: prompt, name: assistantName || orchestrator.name },
+        });
+      }
+    }
+
     const token = createSession();
     reply.setCookie("zeus_session", token, {
       path: "/",
@@ -44,7 +88,7 @@ export async function authRoutes(app: FastifyInstance) {
       maxAge: 86400,
     });
 
-    await log("info", "auth", "Onboarding completed");
+    await log("info", "auth", `Onboarding completed for ${userName || "user"}`);
     return { success: true, vmAddress };
   });
 

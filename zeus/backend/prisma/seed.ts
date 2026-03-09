@@ -2,153 +2,90 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+async function upsertSetting(key: string, value: string) {
+  await prisma.setting.upsert({ where: { key }, update: {}, create: { key, value } });
+}
+
+async function upsertSkill(name: string, description: string, inputProps: Record<string, any>, required: string[] = []) {
+  return prisma.skill.upsert({
+    where: { name },
+    update: {},
+    create: {
+      name,
+      description,
+      inputSchema: JSON.stringify({ type: "object", properties: inputProps, required }),
+      outputSchema: JSON.stringify({ type: "object" }),
+      implementationPath: "built-in",
+      enabled: true,
+      version: "1.0.0",
+    },
+  });
+}
+
 async function main() {
   console.log("Seeding ZEUS database...");
 
-  // Default settings
-  await prisma.setting.upsert({
-    where: { key: "openai_api_key" },
-    update: {},
-    create: { key: "openai_api_key", value: "" },
-  });
-  await prisma.setting.upsert({
-    where: { key: "default_model" },
-    update: {},
-    create: { key: "default_model", value: "gpt-4o-mini" },
-  });
-  await prisma.setting.upsert({
-    where: { key: "telegram_bot_token" },
-    update: {},
-    create: { key: "telegram_bot_token", value: "" },
-  });
+  // ── Settings ────────────────────────────────────
+  const defaultSettings = [
+    ["openai_api_key", ""], ["default_model", "gpt-4o-mini"], ["telegram_bot_token", ""],
+    ["user_name", ""], ["assistant_name", "Zeus"], ["assistant_personality", ""],
+    ["email_imap_host", ""], ["email_imap_port", "993"], ["email_imap_user", ""], ["email_imap_pass", ""],
+    ["email_smtp_host", ""], ["email_smtp_port", "587"], ["email_smtp_user", ""], ["email_smtp_pass", ""],
+    ["email_from_address", ""], ["email_from_name", "ZEUS"],
+  ];
+  for (const [k, v] of defaultSettings) await upsertSetting(k, v);
 
   // ── Skills ──────────────────────────────────────
-
-  const summarizeSkill = await prisma.skill.upsert({
-    where: { name: "summarize_text" },
-    update: {},
-    create: {
-      name: "summarize_text",
-      description: "Summarize a given text into key points",
-      inputSchema: JSON.stringify({
-        type: "object",
-        properties: { text: { type: "string", description: "Text to summarize" } },
-        required: ["text"],
-      }),
-      outputSchema: JSON.stringify({
-        type: "object",
-        properties: { summary: { type: "string" } },
-      }),
-      implementationPath: "built-in",
-      enabled: true,
-      version: "1.0.0",
-    },
-  });
-
-  const createTicketSkill = await prisma.skill.upsert({
-    where: { name: "create_ticket" },
-    update: {},
-    create: {
-      name: "create_ticket",
-      description: "Create a new task ticket in the system. The ticket will be queued for processing by the worker.",
-      inputSchema: JSON.stringify({
-        type: "object",
-        properties: {
-          title: { type: "string", description: "Short title of the task" },
-          description: { type: "string", description: "Detailed description of what needs to be done" },
-          priority: { type: "string", enum: ["low", "medium", "high", "critical"], description: "Task priority" },
-        },
-        required: ["title"],
-      }),
-      outputSchema: JSON.stringify({
-        type: "object",
-        properties: { ticketId: { type: "string" }, title: { type: "string" }, status: { type: "string" } },
-      }),
-      implementationPath: "built-in",
-      enabled: true,
-      version: "1.0.0",
-    },
-  });
-
-  const assignTicketSkill = await prisma.skill.upsert({
-    where: { name: "assign_ticket" },
-    update: {},
-    create: {
-      name: "assign_ticket",
-      description: "Assign a ticket to an agent by their ID. The worker will pick it up and the agent will process it.",
-      inputSchema: JSON.stringify({
-        type: "object",
-        properties: {
-          ticketId: { type: "string", description: "The ticket ID to assign" },
-          agentId: { type: "string", description: "The agent ID to assign the ticket to" },
-        },
-        required: ["ticketId", "agentId"],
-      }),
-      outputSchema: JSON.stringify({
-        type: "object",
-        properties: { success: { type: "boolean" }, agentName: { type: "string" } },
-      }),
-      implementationPath: "built-in",
-      enabled: true,
-      version: "1.0.0",
-    },
-  });
-
-  const listAgentsSkill = await prisma.skill.upsert({
-    where: { name: "list_agents" },
-    update: {},
-    create: {
-      name: "list_agents",
-      description: "List all available agents in the system with their IDs, roles, and missions.",
-      inputSchema: JSON.stringify({
-        type: "object",
-        properties: {},
-      }),
-      outputSchema: JSON.stringify({
-        type: "object",
-        properties: { agents: { type: "array" } },
-      }),
-      implementationPath: "built-in",
-      enabled: true,
-      version: "1.0.0",
-    },
-  });
-
-  const listTicketsSkill = await prisma.skill.upsert({
-    where: { name: "list_tickets" },
-    update: {},
-    create: {
-      name: "list_tickets",
-      description: "List current tickets, optionally filtered by status (queued, in_progress, done, failed).",
-      inputSchema: JSON.stringify({
-        type: "object",
-        properties: {
-          status: { type: "string", enum: ["queued", "in_progress", "done", "failed", "blocked"], description: "Filter by status (optional)" },
-        },
-      }),
-      outputSchema: JSON.stringify({
-        type: "object",
-        properties: { tickets: { type: "array" } },
-      }),
-      implementationPath: "built-in",
-      enabled: true,
-      version: "1.0.0",
-    },
-  });
+  const skills = {
+    summarize_text: await upsertSkill("summarize_text", "Summarize a given text into key points",
+      { text: { type: "string", description: "Text to summarize" } }, ["text"]),
+    create_ticket: await upsertSkill("create_ticket", "Create a new task ticket. The worker will process it automatically.",
+      { title: { type: "string" }, description: { type: "string" }, priority: { type: "string", enum: ["low", "medium", "high", "critical"] } }, ["title"]),
+    assign_ticket: await upsertSkill("assign_ticket", "Assign a ticket to an agent by their ID.",
+      { ticketId: { type: "string" }, agentId: { type: "string" } }, ["ticketId", "agentId"]),
+    list_agents: await upsertSkill("list_agents", "List all available agents with their IDs, roles, and missions.", {}),
+    list_tickets: await upsertSkill("list_tickets", "List current tickets, optionally filtered by status.",
+      { status: { type: "string", enum: ["queued", "in_progress", "done", "failed"] } }),
+    read_emails: await upsertSkill("read_emails", "Read recent emails from the inbox.",
+      { limit: { type: "number", description: "Max emails to return" }, unreadOnly: { type: "boolean" } }),
+    send_email: await upsertSkill("send_email", "Send an email to a recipient.",
+      { to: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, ["to", "subject"]),
+    create_automation: await upsertSkill("create_automation", "Create a new automation definition.",
+      { what: { type: "string" }, systems: { type: "string" }, frequency: { type: "string" }, dataSource: { type: "string" }, delivery: { type: "string" } }, ["what"]),
+  };
 
   // ── Agents ──────────────────────────────────────
 
+  // System Agent (mandatory, cannot be deleted)
+  const systemAgent = await prisma.agent.upsert({
+    where: { id: "system-001" },
+    update: {},
+    create: {
+      id: "system-001",
+      name: "System",
+      description: "Mandatory system agent. Runs health checks, log cleanup, and scheduled maintenance.",
+      role: "System maintenance",
+      mission: "Keep the ZEUS runtime healthy and operational",
+      systemPrompt: "You are the System agent. You run scheduled maintenance tasks and health checks. Report issues clearly.",
+      model: "gpt-4o-mini",
+      temperature: 0.2,
+      maxTokens: 1024,
+      enabled: true,
+      isSystem: true,
+      tags: JSON.stringify(["system", "maintenance"]),
+    },
+  });
+
+  // Orchestrator
   const orchestrator = await prisma.agent.upsert({
     where: { id: "orchestrator-001" },
-    update: {
-      systemPrompt: ORCHESTRATOR_PROMPT,
-    },
+    update: { systemPrompt: ORCHESTRATOR_PROMPT },
     create: {
       id: "orchestrator-001",
-      name: "Orchestrator",
-      description: "Central coordinator that breaks down goals and routes tasks to specialized agents.",
+      name: "Zeus",
+      description: "Central coordinator that breaks down goals, creates tasks, and delegates to agents.",
       role: "Coordinator",
-      mission: "Break down user goals into actionable tasks, create tickets, and assign them to the right agents",
+      mission: "Break down user goals into actionable tasks, create tickets, and assign them to agents",
       systemPrompt: ORCHESTRATOR_PROMPT,
       model: "gpt-4o-mini",
       temperature: 0.4,
@@ -158,11 +95,10 @@ async function main() {
     },
   });
 
+  // Research Agent
   const researcher = await prisma.agent.upsert({
     where: { id: "researcher-001" },
-    update: {
-      systemPrompt: RESEARCHER_PROMPT,
-    },
+    update: {},
     create: {
       id: "researcher-001",
       name: "Research Agent",
@@ -178,29 +114,46 @@ async function main() {
     },
   });
 
-  // ── Skill assignments ───────────────────────────
-
+  // ── Skill Assignments ───────────────────────────
   const assignments = [
-    { agentId: orchestrator.id, skillId: createTicketSkill.id },
-    { agentId: orchestrator.id, skillId: assignTicketSkill.id },
-    { agentId: orchestrator.id, skillId: listAgentsSkill.id },
-    { agentId: orchestrator.id, skillId: listTicketsSkill.id },
-    { agentId: researcher.id, skillId: summarizeSkill.id },
-  ];
+    // Orchestrator gets coordination + email + automation skills
+    [orchestrator.id, skills.create_ticket.id],
+    [orchestrator.id, skills.assign_ticket.id],
+    [orchestrator.id, skills.list_agents.id],
+    [orchestrator.id, skills.list_tickets.id],
+    [orchestrator.id, skills.read_emails.id],
+    [orchestrator.id, skills.send_email.id],
+    [orchestrator.id, skills.create_automation.id],
+    // Researcher gets summarization + email reading
+    [researcher.id, skills.summarize_text.id],
+    [researcher.id, skills.read_emails.id],
+  ] as const;
 
-  for (const a of assignments) {
+  for (const [agentId, skillId] of assignments) {
     await prisma.agentSkill.upsert({
-      where: { agentId_skillId: { agentId: a.agentId, skillId: a.skillId } },
+      where: { agentId_skillId: { agentId, skillId } },
       update: {},
-      create: a,
+      create: { agentId, skillId },
     });
   }
 
-  // ── Example skill gap ───────────────────────────
+  // ── Scheduled Tasks ─────────────────────────────
+  const tasks = [
+    { name: "health_check", description: "Check system health: agent count, ticket status, skill gaps", intervalMin: 60, agentId: systemAgent.id, taskType: "system" },
+    { name: "log_cleanup", description: "Remove log entries older than 7 days", intervalMin: 1440, agentId: systemAgent.id, taskType: "system" },
+    { name: "stale_ticket_check", description: "Detect tickets stuck in_progress for >24h and mark as failed", intervalMin: 120, agentId: systemAgent.id, taskType: "system" },
+    { name: "email_sync", description: "Sync new emails from IMAP inbox", intervalMin: 15, agentId: systemAgent.id, taskType: "email" },
+  ];
 
-  const existingGap = await prisma.skillGap.findFirst({
-    where: { skillName: "read_email_inbox", resolved: false },
-  });
+  for (const t of tasks) {
+    const existing = await prisma.scheduledTask.findFirst({ where: { name: t.name } });
+    if (!existing) {
+      await prisma.scheduledTask.create({ data: t });
+    }
+  }
+
+  // ── Example Skill Gap ───────────────────────────
+  const existingGap = await prisma.skillGap.findFirst({ where: { skillName: "read_email_inbox", resolved: false } });
   if (!existingGap) {
     await prisma.skillGap.create({
       data: {
@@ -212,24 +165,18 @@ async function main() {
     });
   }
 
-  // ── Seed log ────────────────────────────────────
-
   await prisma.logEntry.create({
-    data: {
-      level: "info",
-      source: "system",
-      message: "ZEUS system initialized with seed data",
-    },
+    data: { level: "info", source: "system", message: "ZEUS system initialized with seed data" },
   });
 
   console.log("Seed complete!");
-  console.log(`  - 2 agents: Orchestrator, Research Agent`);
-  console.log(`  - 5 skills: create_ticket, assign_ticket, list_agents, list_tickets, summarize_text`);
-  console.log(`  - 1 skill gap: read_email_inbox`);
-  console.log(`  - Orchestrator can create tasks and delegate to Research Agent`);
+  console.log("  - 3 agents: System, Orchestrator (Zeus), Research Agent");
+  console.log("  - 8 skills: tickets, agents, email, automation, summarize");
+  console.log("  - 4 scheduled tasks: health, logs, stale tickets, email sync");
+  console.log("  - 1 skill gap: read_email_inbox");
 }
 
-const ORCHESTRATOR_PROMPT = `You are the Orchestrator — the central coordinator of the ZEUS agent runtime.
+const ORCHESTRATOR_PROMPT = `You are Zeus — the central coordinator of the ZEUS agent runtime and personal AI assistant.
 
 Your job is to:
 1. Understand the user's goal
@@ -245,13 +192,19 @@ WORKFLOW — always follow these steps:
 4. Call assign_ticket to route each ticket to the right agent
 5. Confirm to the user what was created and assigned
 
+CAPABILITIES:
+- Create and manage tickets and assign them to agents
+- Read and send emails on behalf of the user
+- Create automations (recurring tasks)
+- List available agents and their current workload
+
 RULES:
 - Always use your tools to take action. Do not just describe what you would do — actually do it.
-- If a task is best suited for a specific agent, assign it to that agent.
-- If you are unsure which agent to use, use list_agents to see who is available.
 - If a task requires a capability no agent has, say so clearly.
-- Be structured: use numbered steps, clear ticket titles, and brief descriptions.
-- You may process simple questions directly without creating tickets.`;
+- Be structured: use numbered steps, clear ticket titles.
+- You may process simple questions directly without creating tickets.
+- When the user asks you to send an email, use the send_email tool directly.
+- When the user asks about their inbox, use read_emails to check.`;
 
 const RESEARCHER_PROMPT = `You are the Research Agent — a specialist in analysis, research, and summarization.
 
@@ -259,17 +212,14 @@ Your job is to:
 - Analyze information thoroughly
 - Provide clear, structured summaries
 - Offer research-backed insights
-- Break down complex topics into understandable parts
+- Summarize emails and documents when asked
 
 When processing a ticket:
 - Read the title and description carefully
 - Provide a comprehensive response
-- Structure your output with headings and bullet points when appropriate
+- Structure your output with headings and bullet points
 - Be thorough but concise`;
 
 main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
+  .catch((e) => { console.error(e); process.exit(1); })
   .finally(() => prisma.$disconnect());

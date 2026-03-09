@@ -57,8 +57,12 @@ export async function agentRoutes(app: FastifyInstance) {
     return prisma.agent.update({ where: { id }, data });
   });
 
-  app.delete("/api/agents/:id", async (req) => {
+  app.delete("/api/agents/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
+    const agent = await prisma.agent.findUnique({ where: { id } });
+    if (agent?.isSystem) {
+      return reply.status(400).send({ error: "Cannot delete system agents." });
+    }
     await prisma.agent.delete({ where: { id } });
     return { success: true };
   });

@@ -89,6 +89,67 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
     };
   },
 
+  read_emails: async (args) => {
+    const limit = Number(args.limit) || 10;
+    const unreadOnly = args.unreadOnly !== false;
+    const where: any = { direction: "inbound" };
+    if (unreadOnly) where.isRead = false;
+
+    const emails = await prisma.emailMessage.findMany({
+      where,
+      orderBy: { date: "desc" },
+      take: limit,
+    });
+
+    if (emails.length === 0) {
+      return { success: true, data: { emails: [] }, message: "No emails found." };
+    }
+
+    const summaries = emails.map((e) =>
+      `  - From: ${e.from}\n    Subject: ${e.subject}\n    Date: ${e.date.toISOString().slice(0, 16)}\n    Preview: ${e.body.slice(0, 120)}...`
+    );
+
+    return {
+      success: true,
+      data: { emails: emails.map((e) => ({ id: e.id, from: e.from, subject: e.subject, date: e.date, body: e.body.slice(0, 500) })) },
+      message: `${emails.length} email(s):\n${summaries.join("\n\n")}`,
+    };
+  },
+
+  send_email: async (args) => {
+    const { sendEmail } = await import("./email.js");
+    const to = String(args.to || "");
+    const subject = String(args.subject || "");
+    const body = String(args.body || "");
+    if (!to || !subject) {
+      return { success: false, data: {}, message: "Both 'to' and 'subject' are required." };
+    }
+    try {
+      const messageId = await sendEmail(to, subject, body);
+      return { success: true, data: { messageId }, message: `Email sent to ${to}: "${subject}"` };
+    } catch (e: any) {
+      return { success: false, data: {}, message: `Failed to send email: ${e.message}` };
+    }
+  },
+
+  create_automation: async (args) => {
+    const automation = await prisma.automation.create({
+      data: {
+        what: String(args.what || ""),
+        systems: String(args.systems || ""),
+        frequency: String(args.frequency || ""),
+        dataSource: String(args.dataSource || ""),
+        delivery: String(args.delivery || ""),
+        status: "pending",
+      },
+    });
+    return {
+      success: true,
+      data: { automationId: automation.id },
+      message: `Automation created: "${automation.what}" (ID: ${automation.id}). Status: pending.`,
+    };
+  },
+
   list_tickets: async (args) => {
     const status = args.status ? String(args.status) : undefined;
     const where: any = {};

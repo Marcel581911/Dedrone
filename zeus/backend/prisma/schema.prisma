@@ -30,8 +30,10 @@ model Agent {
   conversations Conversation[]
   memories      Memory[]
   tickets       Ticket[]
+  isSystem           Boolean        @default(false)
   agentSkills        AgentSkill[]
   telegramPairings   TelegramPairing[]
+  scheduledTasks     ScheduledTask[]
 }
 
 model Conversation {
@@ -126,6 +128,54 @@ model TelegramPairingCode {
   agentId   String
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model ScheduledTask {
+  id          String   @id @default(uuid())
+  name        String
+  description String   @default("")
+  intervalMin Int      @default(60)
+  agentId     String?
+  enabled     Boolean  @default(true)
+  taskType    String   @default("system")
+  taskConfig  String   @default("{}")
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  lastResult  String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  agent       Agent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+}
+
+model Automation {
+  id          String   @id @default(uuid())
+  what        String
+  systems     String   @default("")
+  frequency   String   @default("")
+  dataSource  String   @default("")
+  delivery    String   @default("")
+  status      String   @default("draft")
+  ticketId    String?
+  testResult  String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model EmailMessage {
+  id          String   @id @default(uuid())
+  messageId   String   @default("")
+  from        String
+  to          String
+  subject     String
+  body        String
+  htmlBody    String   @default("")
+  date        DateTime @default(now())
+  folder      String   @default("INBOX")
+  isRead      Boolean  @default(false)
+  summary     String   @default("")
+  attachments String   @default("[]")
+  direction   String   @default("inbound")
+  createdAt   DateTime @default(now())
 }
 
 model LogEntry {

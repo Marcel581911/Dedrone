@@ -7,6 +7,7 @@ import AgentDetail from "./pages/AgentDetail";
 import Tickets from "./pages/Tickets";
 import Skills from "./pages/Skills";
 import SkillGaps from "./pages/SkillGaps";
+import Automations from "./pages/Automations";
 import Logs from "./pages/Logs";
 import Settings from "./pages/Settings";
 import Onboarding from "./pages/Onboarding";
@@ -16,6 +17,7 @@ const NAV = [
   { to: "/", label: "Dashboard", icon: "◆" },
   { to: "/agents", label: "Agents", icon: "●" },
   { to: "/tickets", label: "Tickets", icon: "▬" },
+  { to: "/automations", label: "Automations", icon: "↻" },
   { to: "/skills", label: "Skills", icon: "⚙" },
   { to: "/skill-gaps", label: "Skill Gaps", icon: "△" },
   { to: "/logs", label: "Logs", icon: "▤" },
@@ -26,15 +28,16 @@ type AuthState = "loading" | "onboarding" | "login" | "authenticated";
 
 export default function App() {
   const [authState, setAuthState] = useState<AuthState>("loading");
+  const [profile, setProfile] = useState<any>({});
 
   const checkAuth = async () => {
     try {
       const status = await api.authStatus();
+      setProfile(status);
       if (!status.onboarded) {
         setAuthState("onboarding");
         return;
       }
-      // Try a protected endpoint to check if session is valid
       await api.dashboard();
       setAuthState("authenticated");
     } catch (e: any) {
@@ -48,7 +51,6 @@ export default function App() {
 
   useEffect(() => {
     checkAuth();
-
     const handleLogout = () => setAuthState("login");
     window.addEventListener("zeus:logout", handleLogout);
     return () => window.removeEventListener("zeus:logout", handleLogout);
@@ -66,18 +68,19 @@ export default function App() {
   }
 
   if (authState === "onboarding") {
-    return <Onboarding onComplete={() => setAuthState("authenticated")} />;
+    return <Onboarding onComplete={() => { checkAuth(); setAuthState("authenticated"); }} />;
   }
 
   if (authState === "login") {
-    return <Login onLogin={() => setAuthState("authenticated")} />;
+    return <Login onLogin={() => checkAuth()} />;
   }
 
-  return <AuthenticatedApp onLogout={() => setAuthState("login")} />;
+  return <AuthenticatedApp onLogout={() => setAuthState("login")} profile={profile} />;
 }
 
-function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
-  const navigate = useNavigate();
+function AuthenticatedApp({ onLogout, profile }: { onLogout: () => void; profile: any }) {
+  const userName = profile.user_name || "";
+  const assistantName = profile.assistant_name || "Zeus";
 
   const logout = async () => {
     await api.logout();
@@ -88,8 +91,13 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
     <div className="flex h-screen bg-gray-950 text-gray-100">
       <aside className="w-56 bg-gray-900 border-r border-gray-800 flex flex-col">
         <div className="p-4 border-b border-gray-800">
-          <h1 className="text-xl font-bold tracking-wider text-amber-400">⚡ ZEUS</h1>
-          <p className="text-xs text-gray-500 mt-1">Agent Runtime v1.0</p>
+          <h1 className="text-xl font-bold tracking-wider text-amber-400">⚡ {assistantName}</h1>
+          {userName && (
+            <p className="text-xs text-gray-500 mt-1">{userName}'s Assistant</p>
+          )}
+          {!userName && (
+            <p className="text-xs text-gray-500 mt-1">Agent Runtime</p>
+          )}
         </div>
         <nav className="flex-1 py-2">
           {NAV.map((n) => (
@@ -125,6 +133,7 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
           <Route path="/agents" element={<Agents />} />
           <Route path="/agents/:id" element={<AgentDetail />} />
           <Route path="/tickets" element={<Tickets />} />
+          <Route path="/automations" element={<Automations />} />
           <Route path="/skills" element={<Skills />} />
           <Route path="/skill-gaps" element={<SkillGaps />} />
           <Route path="/logs" element={<Logs />} />
