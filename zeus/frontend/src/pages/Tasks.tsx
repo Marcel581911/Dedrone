@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import { Card, PageTitle, Btn, Badge, Input, Select, TextArea, EmptyState } from "../components/ui";
 
-export default function Tickets() {
+export default function Tasks() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -43,7 +43,7 @@ export default function Tickets() {
   return (
     <div className="max-w-4xl">
       <div className="flex items-center justify-between mb-5">
-        <PageTitle>Tickets</PageTitle>
+        <PageTitle>Tasks</PageTitle>
         <div className="flex gap-2">
           <Btn onClick={processNext} disabled={processing}>{processing ? "..." : "Process Next"}</Btn>
           <Btn variant="primary" onClick={() => setShowCreate(!showCreate)}>+ New</Btn>

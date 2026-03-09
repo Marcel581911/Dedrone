@@ -24,7 +24,7 @@ export default function AgentDetail() {
   return (
     <div className="max-w-5xl">
       <div className="flex items-center gap-3 mb-5">
-        <Link to="/system/agents" className="text-xs" style={{ color: "var(--text-muted)" }}>← Agents</Link>
+        <Link to="/settings" className="text-xs" style={{ color: "var(--text-muted)" }}>← Settings</Link>
         <span style={{ color: "var(--border)" }}>/</span>
         <span className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>{agent.name}</span>
         <Badge color={agent.enabled ? "green" : "red"}>{agent.enabled ? "Active" : "Off"}</Badge>
