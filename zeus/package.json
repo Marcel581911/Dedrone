@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "install:all": "pnpm install && cd backend && pnpm install && cd ../frontend && pnpm install",
+    "check": "bash setup.sh",
+    "setup": "bash setup.sh --install",
     "dev": "concurrently -n backend,frontend -c blue,green \"pnpm --filter backend dev\" \"pnpm --filter frontend dev\"",
     "start": "concurrently -n backend,frontend -c blue,green \"pnpm --filter backend start\" \"pnpm --filter frontend preview\"",
     "build": "pnpm --filter frontend build && pnpm --filter backend build",
