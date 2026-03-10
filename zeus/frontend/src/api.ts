@@ -18,8 +18,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   authStatus: () => request<any>("/auth/status"),
-  onboard: (password: string, vmAddress: string, userName?: string, assistantName?: string, assistantPersonality?: string) =>
-    request<any>("/auth/onboard", { method: "POST", body: JSON.stringify({ password, vmAddress, userName, assistantName, assistantPersonality }) }),
+  onboard: (password: string, vmAddress: string, userName?: string, assistantName?: string, assistantPersonality?: string, city?: string, timezone?: string) =>
+    request<any>("/auth/onboard", { method: "POST", body: JSON.stringify({ password, vmAddress, userName, assistantName, assistantPersonality, city, timezone }) }),
   login: (password: string) => request<any>("/auth/login", { method: "POST", body: JSON.stringify({ password }) }),
   logout: () => request<any>("/auth/logout", { method: "POST" }),
   changePassword: (currentPassword: string, newPassword: string) =>
@@ -134,4 +134,7 @@ export const api = {
   createBackup: () => request<any>("/backup", { method: "POST" }),
   getBackups: () => request<any>("/backups"),
   restoreBackup: (name: string) => request<any>(`/backup/restore/${name}`, { method: "POST" }),
+
+  // Weather
+  getWeather: () => request<any>("/weather"),
 };

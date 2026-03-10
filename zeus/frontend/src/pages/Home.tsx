@@ -14,6 +14,7 @@ export default function Home() {
   const [showActivity, setShowActivity] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dash, setDash] = useState<any>(null);
+  const [weather, setWeather] = useState<any>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -32,6 +33,7 @@ export default function Home() {
       }
     });
     loadDash();
+    api.getWeather().then(setWeather).catch(() => {});
     const t = setInterval(loadDash, 30000);
     return () => clearInterval(t);
   }, []);
@@ -159,6 +161,25 @@ export default function Home() {
                 ))}
                 {(!dash.recentDone || dash.recentDone.length === 0) && <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>Nothing yet</p>}
               </div>
+
+              {/* Weather */}
+              {weather?.configured && weather?.current && (
+                <div className="shrink-0 w-44 rounded-lg border p-3" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+                  <p className="text-[10px] font-medium mb-1" style={{ color: "var(--text-muted)" }}>{weather.city}</p>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>{weather.current.temp}°</span>
+                    <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{weather.current.condition}</span>
+                  </div>
+                  <div className="mt-1.5 space-y-0.5">
+                    {weather.forecast?.slice(0, 2).map((d: any) => (
+                      <div key={d.date} className="flex justify-between text-[10px]">
+                        <span style={{ color: "var(--text-muted)" }}>{new Date(d.date).toLocaleDateString([], { weekday: "short" })}</span>
+                        <span style={{ color: "var(--text-secondary)" }}>{d.low}° / {d.high}°</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

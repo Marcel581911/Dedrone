@@ -25,6 +25,7 @@ import { noteRoutes } from "./routes/notes.js";
 import { searchRoutes } from "./routes/search.js";
 import { dataExportRoutes } from "./routes/data-export.js";
 import { usageRoutes } from "./routes/usage.js";
+import { weatherRoutes } from "./routes/weather.js";
 import multipart from "@fastify/multipart";
 import { log } from "./logger.js";
 import { startWorker } from "./services/worker.js";
@@ -86,6 +87,7 @@ await app.register(noteRoutes);
 await app.register(searchRoutes);
 await app.register(dataExportRoutes);
 await app.register(usageRoutes);
+await app.register(weatherRoutes);
 
 // Serve frontend build (production mode)
 const frontendDist = path.resolve(import.meta.dirname, "../../frontend/dist");

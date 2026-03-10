@@ -17,7 +17,7 @@ export async function authRoutes(app: FastifyInstance) {
     const onboarded = await isOnboarded();
     const vmAddress = await getVmAddress();
     const settings = await prisma.setting.findMany({
-      where: { key: { in: ["user_name", "assistant_name", "assistant_personality"] } },
+      where: { key: { in: ["user_name", "assistant_name", "assistant_personality", "user_city", "user_timezone"] } },
     });
     const profile: Record<string, string> = {};
     for (const s of settings) profile[s.key] = s.value;
@@ -31,9 +31,10 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "Already onboarded. Use login instead." });
     }
 
-    const { password, vmAddress, userName, assistantName, assistantPersonality } = req.body as {
+    const { password, vmAddress, userName, assistantName, assistantPersonality, city, timezone } = req.body as {
       password: string; vmAddress: string; userName?: string;
       assistantName?: string; assistantPersonality?: string;
+      city?: string; timezone?: string;
     };
     if (!password || password.length < 4) {
       return reply.status(400).send({ error: "Password must be at least 4 characters." });
@@ -50,6 +51,8 @@ export async function authRoutes(app: FastifyInstance) {
       ["user_name", userName || ""],
       ["assistant_name", assistantName || "Zeus"],
       ["assistant_personality", assistantPersonality || ""],
+      ["user_city", city || ""],
+      ["user_timezone", timezone || Intl.DateTimeFormat().resolvedOptions().timeZone],
     ];
     for (const [key, value] of personalSettings) {
       await prisma.setting.upsert({

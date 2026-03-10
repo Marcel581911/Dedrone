@@ -285,13 +285,22 @@ function LogsTab() {
 
 function AccessTab() {
   const [vm, setVm] = useState("");
+  const [city, setCity] = useState("");
+  const [timezone, setTimezone] = useState("");
   const [curPw, setCurPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confPw, setConfPw] = useState("");
   const [pwMsg, setPwMsg] = useState<any>(null);
+  const [locMsg, setLocMsg] = useState<any>(null);
   const [changing, setChanging] = useState(false);
 
-  useEffect(() => { api.authStatus().then((s) => { if (s.vmAddress) setVm(s.vmAddress); }); }, []);
+  useEffect(() => {
+    api.authStatus().then((s) => {
+      if (s.vmAddress) setVm(s.vmAddress);
+      if (s.user_city) setCity(s.user_city);
+      if (s.user_timezone) setTimezone(s.user_timezone);
+    });
+  }, []);
 
   const changePw = async () => {
     if (newPw.length < 4) { setPwMsg({ ok: false, t: "Min 4 characters" }); return; }
@@ -302,8 +311,36 @@ function AccessTab() {
     finally { setChanging(false); }
   };
 
+  const saveLocation = async () => {
+    try {
+      await api.updateSettings({ user_city: city, user_timezone: timezone });
+      setLocMsg({ ok: true, t: "Location saved" });
+    } catch (e: any) { setLocMsg({ ok: false, t: e.message }); }
+  };
+
   return (
     <div className="max-w-sm space-y-4">
+      <Card>
+        <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-primary)" }}>Location & timezone</h3>
+        <div className="space-y-3">
+          <div>
+            <Label>City</Label>
+            <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Paris, New York" />
+          </div>
+          <div>
+            <Label>Timezone</Label>
+            <select value={timezone} onChange={(e) => setTimezone(e.target.value)}
+              className="w-full rounded-md border px-3 py-2 text-sm"
+              style={{ background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--text-primary)" }}>
+              {Intl.supportedValuesOf("timeZone").map((tz) => <option key={tz} value={tz}>{tz.replace(/_/g, " ")}</option>)}
+            </select>
+            <p className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>Used for reminders, calendar, and weather</p>
+          </div>
+          {locMsg && <p className="text-xs" style={{ color: locMsg.ok ? "#4ade80" : "#f87171" }}>{locMsg.t}</p>}
+          <Btn onClick={saveLocation}>Save location</Btn>
+        </div>
+      </Card>
+
       <Card>
         <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-primary)" }}>Remote access</h3>
         <div className="flex gap-2 mb-2">
