@@ -51,6 +51,11 @@ const BUILTIN_TASKS: Record<string, () => Promise<string>> = {
     }
   },
 
+  prompt_optimize: async () => {
+    const { analyzeTokenUsage } = await import("./prompt-optimizer.js");
+    return analyzeTokenUsage();
+  },
+
   memory_prune: async () => {
     const { pruneMemories } = await import("./memory.js");
     const count = await pruneMemories();

@@ -3,6 +3,7 @@ import { prisma } from "../db.js";
 import { log } from "../logger.js";
 import { executeSkill } from "./skill-executor.js";
 import { searchMemory, storeMemory } from "./memory.js";
+import { optimizeForChat } from "./prompt-optimizer.js";
 
 const MAX_TOOL_ROUNDS = 5;
 
@@ -54,10 +55,14 @@ export async function chatWithAgent(agentId: string, conversationId: string, use
     },
   }));
 
+  // Optimize prompt to reduce token usage and cost
+  const rawMessages = previousMessages.map((m) => ({ role: m.role, content: m.content }));
+  const optimized = optimizeForChat(systemPrompt, rawMessages, memoryContext);
+
   const apiMessages: OpenAI.ChatCompletionMessageParam[] = [
-    { role: "system", content: systemPrompt + memoryContext },
-    ...previousMessages.map((m) => ({
-      role: m.role as "user" | "assistant",
+    { role: "system", content: optimized.systemPrompt + (optimized.memoryContext ? `\n\n## Relevant Context\n${optimized.memoryContext}` : "") },
+    ...optimized.messages.map((m) => ({
+      role: m.role as "user" | "assistant" | "system",
       content: m.content,
     })),
   ];

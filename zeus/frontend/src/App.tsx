@@ -62,6 +62,7 @@ function Shell({ onLogout, profile }: { onLogout: () => void; profile: any }) {
   const assistantName = profile.assistant_name || "Zeus";
   const location = useLocation();
   const isHome = location.pathname === "/";
+  const [showSupport, setShowSupport] = useState(false);
 
   return (
     <div className="flex h-screen" style={{ background: "var(--bg-root)" }}>
@@ -87,6 +88,12 @@ function Shell({ onLogout, profile }: { onLogout: () => void; profile: any }) {
           ))}
         </nav>
 
+        <button onClick={() => setShowSupport(true)} title="Help & Support"
+          className="mb-1 opacity-30 hover:opacity-70 transition-opacity">
+          <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" style={{ color: "var(--text-secondary)" }}>
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd"/>
+          </svg>
+        </button>
         <button onClick={async () => { await api.logout(); onLogout(); }} title="Sign out"
           className="mb-2 opacity-30 hover:opacity-70 transition-opacity">
           <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4" style={{ color: "var(--text-secondary)" }}>
@@ -118,6 +125,133 @@ function Shell({ onLogout, profile }: { onLogout: () => void; profile: any }) {
           </Routes>
         </div>
       </main>
+
+      {/* Support modal */}
+      {showSupport && <SupportModal onClose={() => setShowSupport(false)} />}
+    </div>
+  );
+}
+
+function SupportModal({ onClose }: { onClose: () => void }) {
+  const [tab, setTab] = useState<"help" | "ticket">("help");
+  const [subject, setSubject] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("General");
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const submitTicket = async () => {
+    if (!subject.trim() || !description.trim()) return;
+    setSending(true);
+    try {
+      const r = await fetch("/api/support/ticket", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject, description, category }),
+      });
+      const data = await r.json();
+      setResult(data);
+      if (data.success) { setSubject(""); setDescription(""); }
+    } finally { setSending(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onClick={onClose}>
+      <div className="w-full max-w-lg rounded-xl border p-6" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+        onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Help & Support</h3>
+          <button onClick={onClose} className="text-sm" style={{ color: "var(--text-muted)" }}>Close</button>
+        </div>
+
+        <div className="flex gap-1 mb-4 border-b" style={{ borderColor: "var(--border)" }}>
+          {[{ key: "help", label: "Help" }, { key: "ticket", label: "Submit Ticket" }].map((t) => (
+            <button key={t.key} onClick={() => { setTab(t.key as any); setResult(null); }}
+              className="px-3 py-2 text-xs font-medium relative"
+              style={{ color: tab === t.key ? "var(--accent)" : "var(--text-muted)" }}>
+              {t.label}
+              {tab === t.key && <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: "var(--accent)" }} />}
+            </button>
+          ))}
+        </div>
+
+        {tab === "help" && (
+          <div className="space-y-3 text-sm" style={{ color: "var(--text-secondary)" }}>
+            <div className="rounded-lg p-3 border" style={{ borderColor: "var(--border)", background: "var(--bg-input)" }}>
+              <p className="font-medium mb-1" style={{ color: "var(--text-primary)" }}>Getting started</p>
+              <ul className="list-disc list-inside space-y-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                <li>Chat with your assistant on the <strong>Home</strong> page</li>
+                <li>Attach files (PDF, Excel) — they're auto-summarized</li>
+                <li>Set up recurring workflows in <strong>Automations</strong></li>
+                <li>Install add-ons from <strong>Modules</strong></li>
+                <li>Configure connections in <strong>Settings</strong></li>
+              </ul>
+            </div>
+            <div className="rounded-lg p-3 border" style={{ borderColor: "var(--border)", background: "var(--bg-input)" }}>
+              <p className="font-medium mb-1" style={{ color: "var(--text-primary)" }}>Tips</p>
+              <ul className="list-disc list-inside space-y-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                <li>Your assistant remembers past conversations and files</li>
+                <li>Ask it to create tasks, send emails, or manage your schedule</li>
+                <li>It can create new agents when specialized help is needed</li>
+                <li>All data stays on your VM — nothing is shared</li>
+              </ul>
+            </div>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Need more help? Switch to the <strong>Submit Ticket</strong> tab.
+            </p>
+          </div>
+        )}
+
+        {tab === "ticket" && (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>Category</label>
+              <select value={category} onChange={(e) => setCategory(e.target.value)}
+                className="w-full rounded-md border px-3 py-2 text-sm"
+                style={{ background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--text-primary)" }}>
+                <option>General</option>
+                <option>Bug report</option>
+                <option>Feature request</option>
+                <option>Configuration help</option>
+                <option>Storage issue</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>Subject</label>
+              <input value={subject} onChange={(e) => setSubject(e.target.value)}
+                placeholder="Brief summary of your issue"
+                className="w-full rounded-md border px-3 py-2 text-sm"
+                style={{ background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--text-primary)" }} />
+            </div>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: "var(--text-muted)" }}>Description</label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+                placeholder="Describe what happened, what you expected, and any steps to reproduce..."
+                className="w-full rounded-md border px-3 py-2 text-sm min-h-[100px]"
+                style={{ background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--text-primary)" }} />
+            </div>
+
+            {result && (
+              <div className="rounded-md p-3 text-xs" style={{
+                background: result.success ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                color: result.success ? "#4ade80" : "#f87171",
+              }}>
+                {result.message || result.error}
+              </div>
+            )}
+
+            <button onClick={submitTicket} disabled={sending || !subject.trim() || !description.trim()}
+              className="w-full py-2.5 rounded-md text-sm font-medium disabled:opacity-30"
+              style={{ background: "var(--accent)", color: "#000" }}>
+              {sending ? "Sending..." : "Submit Ticket"}
+            </button>
+
+            <p className="text-[10px] text-center" style={{ color: "var(--text-muted)" }}>
+              Tickets are sent to zeus.support@zephyre.com when email is configured.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

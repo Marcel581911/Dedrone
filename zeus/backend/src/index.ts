@@ -17,6 +17,7 @@ import { automationRoutes } from "./routes/automations.js";
 import { emailRoutes } from "./routes/email.js";
 import { moduleRoutes } from "./routes/modules.js";
 import { fileRoutes } from "./routes/files.js";
+import { supportRoutes } from "./routes/support.js";
 import multipart from "@fastify/multipart";
 import { log } from "./logger.js";
 import { startWorker } from "./services/worker.js";
@@ -70,6 +71,7 @@ await app.register(automationRoutes);
 await app.register(emailRoutes);
 await app.register(moduleRoutes);
 await app.register(fileRoutes);
+await app.register(supportRoutes);
 
 // Serve frontend build (production mode)
 const frontendDist = path.resolve(import.meta.dirname, "../../frontend/dist");
