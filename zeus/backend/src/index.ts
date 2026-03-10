@@ -16,6 +16,8 @@ import { authRoutes } from "./routes/auth.js";
 import { automationRoutes } from "./routes/automations.js";
 import { emailRoutes } from "./routes/email.js";
 import { moduleRoutes } from "./routes/modules.js";
+import { fileRoutes } from "./routes/files.js";
+import multipart from "@fastify/multipart";
 import { log } from "./logger.js";
 import { startWorker } from "./services/worker.js";
 import { startBot } from "./services/telegram.js";
@@ -27,6 +29,7 @@ const app = Fastify({ logger: false });
 
 await app.register(cors, { origin: true, credentials: true });
 await app.register(cookie);
+await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } });
 
 // Auth middleware — protect /api/* except /api/auth/*
 app.addHook("onRequest", async (req, reply) => {
@@ -66,6 +69,7 @@ await app.register(telegramRoutes);
 await app.register(automationRoutes);
 await app.register(emailRoutes);
 await app.register(moduleRoutes);
+await app.register(fileRoutes);
 
 // Serve frontend build (production mode)
 const frontendDist = path.resolve(import.meta.dirname, "../../frontend/dist");
