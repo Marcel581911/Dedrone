@@ -42,12 +42,14 @@ const BUILTIN_TASKS: Record<string, () => Promise<string>> = {
   },
 
   email_sync: async () => {
-    const { syncInbox } = await import("./email.js");
+    const cfg = await prisma.setting.findUnique({ where: { key: "email_imap_host" } });
+    if (!cfg?.value) return "Skipped — IMAP not configured";
     try {
+      const { syncInbox } = await import("./email.js");
       const count = await syncInbox();
       return `Synced ${count} new email(s)`;
     } catch (e: any) {
-      return `Email sync skipped: ${e.message}`;
+      return `Email sync failed: ${e.message}`;
     }
   },
 

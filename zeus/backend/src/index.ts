@@ -1,3 +1,7 @@
+// Prevent crashes from unhandled rejections
+process.on("uncaughtException", (err) => { console.error("[ZEUS] Uncaught exception:", err.message); });
+process.on("unhandledRejection", (err: any) => { console.error("[ZEUS] Unhandled rejection:", err?.message || err); });
+
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
@@ -100,8 +104,10 @@ if (fs.existsSync(frontendDist)) {
     wildcard: false,
   });
 
-  // SPA fallback: serve index.html for all non-API, non-file routes
-  app.setNotFoundHandler(async (_req, reply) => {
+  app.setNotFoundHandler(async (req, reply) => {
+    if (req.url.startsWith("/api/")) {
+      return reply.status(404).send({ error: "Not found" });
+    }
     return reply.sendFile("index.html");
   });
 
