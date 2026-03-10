@@ -82,6 +82,8 @@ export const api = {
   updateScheduledTask: (id: string, data: any) => request<any>(`/scheduled-tasks/${id}`, { method: "PUT", body: JSON.stringify(data) }),
 
   getEmails: (params?: Record<string, string>) => { const qs = params ? "?" + new URLSearchParams(params).toString() : ""; return request<any[]>(`/emails${qs}`); },
+  getEmail: (id: string) => request<any>(`/emails/${id}`),
+  deleteEmail: (id: string) => request<any>(`/emails/${id}`, { method: "DELETE" }),
   syncEmails: () => request<any>("/emails/sync", { method: "POST" }),
   sendNewEmail: (to: string, subject: string, body: string) => request<any>("/emails/send", { method: "POST", body: JSON.stringify({ to, subject, body }) }),
   testImap: () => request<any>("/emails/test-imap", { method: "POST" }),

@@ -45,6 +45,12 @@ export async function emailRoutes(app: FastifyInstance) {
     }
   });
 
+  app.delete("/api/emails/:id", async (req) => {
+    const { id } = req.params as { id: string };
+    await prisma.emailMessage.delete({ where: { id } });
+    return { success: true };
+  });
+
   app.post("/api/emails/test-imap", async () => testImapConnection());
   app.post("/api/emails/test-smtp", async () => testSmtpConnection());
 }
