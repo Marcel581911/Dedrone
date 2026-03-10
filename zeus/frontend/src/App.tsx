@@ -253,15 +253,38 @@ function SupportModal({ onClose }: { onClose: () => void }) {
         {tab === "help" && (
           <div className="space-y-3 text-sm" style={{ color: "var(--text-secondary)" }}>
             <div className="rounded-lg p-3 border" style={{ borderColor: "var(--border)", background: "var(--bg-input)" }}>
-              <p className="font-medium mb-1" style={{ color: "var(--text-primary)" }}>Getting started</p>
+              <p className="font-medium mb-2" style={{ color: "var(--text-primary)" }}>Quick start</p>
               <ul className="list-disc list-inside space-y-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                <li>Chat with your assistant on <strong>Home</strong></li>
-                <li>Attach files (PDF, Excel) — auto-summarized</li>
-                <li>Say "remind me..." to set reminders</li>
-                <li>Use <strong>Calendar</strong> to manage events</li>
-                <li>Set up workflows in <strong>Automations</strong></li>
+                <li><strong>Home</strong> — Chat with your assistant. Attach files with 📎</li>
+                <li><strong>Tasks</strong> — Your to-do list. Click the circle to mark done</li>
+                <li><strong>Calendar</strong> — Week view. Add events manually or ask your assistant</li>
+                <li><strong>Notes</strong> — Pin important info. "Save a note: gate code is 4521"</li>
+                <li><strong>Automations</strong> — Recurring workflows. "Summarize emails every morning"</li>
+                <li><strong>Modules</strong> — Install add-ons (Finance, Travel, School, Health)</li>
               </ul>
             </div>
+            <div className="rounded-lg p-3 border" style={{ borderColor: "var(--border)", background: "var(--bg-input)" }}>
+              <p className="font-medium mb-2" style={{ color: "var(--text-primary)" }}>Try saying...</p>
+              <ul className="space-y-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                <li>"Add a task: buy groceries by Friday, high priority"</li>
+                <li>"Remind me to call the doctor tomorrow at 3pm"</li>
+                <li>"Check my email"</li>
+                <li>"Add a meeting with John on Thursday at 2pm"</li>
+                <li>"Save a note: wifi password is abc123"</li>
+                <li>"What's on my plate today?"</li>
+              </ul>
+            </div>
+            <div className="rounded-lg p-3 border" style={{ borderColor: "var(--border)", background: "var(--bg-input)" }}>
+              <p className="font-medium mb-2" style={{ color: "var(--text-primary)" }}>Setup guides</p>
+              <ul className="space-y-1.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                <li><strong>Telegram bot</strong> — Chat from your phone. Open Telegram, message @BotFather, send /newbot, choose a name, copy the token. Paste it in Settings, click Start Bot. Then go to any Agent's Telegram tab, generate a pairing code, and send /pair CODE to your bot.</li>
+                <li><strong>Email</strong> — Read and send emails. Go to Settings, scroll to Email. Enter IMAP and SMTP details. Gmail: use an App Password from myaccount.google.com/apppasswords.</li>
+                <li><strong>Modules</strong> — Go to Modules in the sidebar. Click Install. Fill in settings if prompted.</li>
+              </ul>
+            </div>
+            <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+              Your data stays on your server. Nothing is shared externally except API calls to OpenAI and your email provider.
+            </p>
           </div>
         )}
         {tab === "ticket" && (
