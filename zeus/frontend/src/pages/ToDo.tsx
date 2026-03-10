@@ -7,7 +7,7 @@ const PRI_COLOR: Record<string, string> = { critical: "var(--accent)", high: "#f
 const CATEGORIES = ["All", "Work", "Personal", "School", "Travel", "Health", "Finance"];
 const CAT_COLORS: Record<string, string> = { Work: "#60a5fa", Personal: "#a78bfa", School: "#34d399", Travel: "#fbbf24", Health: "#f87171", Finance: "#2dd4bf" };
 
-export default function Tasks() {
+export default function ToDo() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [statusFilter, setStatusFilter] = useState("active");
@@ -58,7 +58,7 @@ export default function Tasks() {
   return (
     <div className="max-w-3xl">
       <div className="flex items-center justify-between mb-5">
-        <PageTitle>Tasks</PageTitle>
+        <PageTitle>To Do</PageTitle>
         <Btn variant="primary" onClick={() => setShowAdd(!showAdd)}>+ Add task</Btn>
       </div>
 

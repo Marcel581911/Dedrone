@@ -61,7 +61,7 @@ export default function Modules() {
 
   return (
     <div className="max-w-4xl">
-      <PageTitle>Modules</PageTitle>
+      <PageTitle>Tools</PageTitle>
 
       {/* Config panel */}
       {configuring && configuringMod && (

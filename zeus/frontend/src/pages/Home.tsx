@@ -124,7 +124,7 @@ export default function Home() {
           <div className="shrink-0 border-b px-4 md:px-6 py-3 overflow-x-auto" style={{ borderColor: "var(--border)" }}>
             <div className="flex gap-3 min-w-max">
               {/* Today's tasks */}
-              <Link to="/tasks" className="shrink-0 w-56 rounded-lg border p-3 hover:border-[var(--border-hover)] transition-colors" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+              <Link to="/todo" className="shrink-0 w-56 rounded-lg border p-3 hover:border-[var(--border-hover)] transition-colors" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
                 <p className="text-[10px] font-medium mb-2" style={{ color: "var(--text-muted)" }}>Tasks</p>
                 {dash.pendingTasks?.slice(0, 3).map((t: any) => (
                   <div key={t.id} className="flex items-center gap-1.5 mb-1">
