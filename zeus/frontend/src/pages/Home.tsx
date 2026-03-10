@@ -15,6 +15,8 @@ export default function Home() {
   const [uploading, setUploading] = useState(false);
   const [dash, setDash] = useState<any>(null);
   const [weather, setWeather] = useState<any>(null);
+  const [editingCity, setEditingCity] = useState(false);
+  const [cityInput, setCityInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -162,10 +164,33 @@ export default function Home() {
                 {(!dash.recentDone || dash.recentDone.length === 0) && <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>Nothing yet</p>}
               </div>
 
-              {/* Weather */}
+              {/* Weather — click city to change location */}
               {weather?.configured && weather?.current && (
                 <div className="shrink-0 w-44 rounded-lg border p-3" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
-                  <p className="text-[10px] font-medium mb-1" style={{ color: "var(--text-muted)" }}>{weather.city}</p>
+                  {editingCity ? (
+                    <div className="mb-1">
+                      <input value={cityInput} onChange={(e) => setCityInput(e.target.value)} autoFocus
+                        placeholder="City name..."
+                        onKeyDown={async (e) => {
+                          if (e.key === "Enter" && cityInput.trim()) {
+                            await api.updateSettings({ user_city: cityInput.trim() });
+                            setEditingCity(false);
+                            api.getWeather().then(setWeather);
+                          }
+                          if (e.key === "Escape") setEditingCity(false);
+                        }}
+                        onBlur={() => setEditingCity(false)}
+                        className="w-full rounded border px-1.5 py-0.5 text-[11px]"
+                        style={{ background: "var(--bg-input)", borderColor: "var(--accent)", color: "var(--text-primary)" }} />
+                    </div>
+                  ) : (
+                    <p className="text-[10px] font-medium mb-1 cursor-pointer hover:underline"
+                      style={{ color: "var(--text-muted)" }}
+                      onClick={() => { setCityInput(weather.city || ""); setEditingCity(true); }}
+                      title="Click to change location">
+                      📍 {weather.city}
+                    </p>
+                  )}
                   <div className="flex items-baseline gap-1">
                     <span className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>{weather.current.temp}°</span>
                     <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{weather.current.condition}</span>
@@ -178,6 +203,28 @@ export default function Home() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+              {weather && !weather?.current && !weather?.error && (
+                <div className="shrink-0 w-44 rounded-lg border p-3 cursor-pointer" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+                  onClick={() => { setCityInput(""); setEditingCity(true); }}>
+                  {editingCity ? (
+                    <input value={cityInput} onChange={(e) => setCityInput(e.target.value)} autoFocus
+                      placeholder="Enter your city..."
+                      onKeyDown={async (e) => {
+                        if (e.key === "Enter" && cityInput.trim()) {
+                          await api.updateSettings({ user_city: cityInput.trim() });
+                          setEditingCity(false);
+                          api.getWeather().then(setWeather);
+                        }
+                        if (e.key === "Escape") setEditingCity(false);
+                      }}
+                      onBlur={() => setEditingCity(false)}
+                      className="w-full rounded border px-1.5 py-0.5 text-[11px]"
+                      style={{ background: "var(--bg-input)", borderColor: "var(--accent)", color: "var(--text-primary)" }} />
+                  ) : (
+                    <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>📍 Set your city for weather</p>
+                  )}
                 </div>
               )}
             </div>
