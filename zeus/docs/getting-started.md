@@ -186,4 +186,4 @@ Click the **?** icon at the bottom of the sidebar to:
 - Read the help guide
 - Submit a support ticket
 
-Tickets are sent to zeus.support@zephyre.com when email is configured.
+Tickets are sent to support.zeus@zephyre.com when email is configured.

@@ -300,7 +300,7 @@ function SupportModal({ onClose }: { onClose: () => void }) {
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe your issue..." className="w-full rounded-md border px-3 py-2 text-sm min-h-[80px]" style={{ background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--text-primary)" }} />
             {result && <div className="rounded-md p-3 text-xs" style={{ background: result.success ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: result.success ? "#4ade80" : "#f87171" }}>{result.message || result.error}</div>}
             <button onClick={submitTicket} disabled={sending || !subject.trim() || !description.trim()} className="w-full py-2.5 rounded-md text-sm font-medium disabled:opacity-30" style={{ background: "var(--accent)", color: "#000" }}>{sending ? "..." : "Submit Ticket"}</button>
-            <p className="text-[10px] text-center" style={{ color: "var(--text-muted)" }}>Sent to zeus.support@zephyre.com</p>
+            <p className="text-[10px] text-center" style={{ color: "var(--text-muted)" }}>Sent to support.zeus@zephyre.com</p>
           </div>
         )}
       </div>

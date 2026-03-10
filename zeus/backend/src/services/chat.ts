@@ -47,14 +47,11 @@ export async function chatWithAgent(agentId: string, conversationId: string, use
     memoryContext = `\n\n## Relevant Context from Memory\nThe following information was retrieved from your memory and may be relevant:\n${memoryLines.join("\n\n")}`;
   }
 
-  const tools: OpenAI.ChatCompletionTool[] = enabledSkills.map((skill) => ({
-    type: "function" as const,
-    function: {
-      name: skill.name,
-      description: skill.description,
-      parameters: JSON.parse(skill.inputSchema || "{}"),
-    },
-  }));
+  const tools: OpenAI.ChatCompletionTool[] = enabledSkills.map((skill) => {
+    let params = {};
+    try { params = JSON.parse(skill.inputSchema || "{}"); } catch {}
+    return { type: "function" as const, function: { name: skill.name, description: skill.description, parameters: params } };
+  });
 
   // Optimize prompt to reduce token usage and cost
   const rawMessages = previousMessages.map((m) => ({ role: m.role, content: m.content }));
@@ -136,6 +133,11 @@ export async function chatWithAgent(agentId: string, conversationId: string, use
       if (msg.content) {
         finalContent = msg.content;
       }
+    }
+
+    // Fallback if model never returned text content
+    if (!finalContent && toolLog.length > 0) {
+      finalContent = "Done.";
     }
 
     // Append skill-gap notice if detected from keyword scan

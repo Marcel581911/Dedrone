@@ -130,13 +130,51 @@ export default function Onboarding({ onComplete }: Props) {
           )}
 
           {step === 5 && (
-            <div className="text-center space-y-4">
-              <p className="text-sm font-medium" style={{ color: "var(--accent)" }}>Ready.</p>
+            <div className="space-y-4">
+              <p className="text-sm font-medium text-center" style={{ color: "var(--accent)" }}>Welcome aboard, {userName}!</p>
+
               <div className="rounded-lg p-4 border" style={{ borderColor: "var(--border)", background: "var(--bg-input)" }}>
-                <p className="text-[10px] mb-1" style={{ color: "var(--text-muted)" }}>Access URL</p>
+                <p className="text-[10px] mb-1" style={{ color: "var(--text-muted)" }}>Your access URL (bookmark this)</p>
                 <a href={accessUrl} className="text-sm font-mono underline break-all" style={{ color: "var(--accent)" }}>{accessUrl}</a>
               </div>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>Next: add your OpenAI API key in Settings, then chat with {assistantName || "Zeus"}.</p>
+
+              <div className="rounded-lg p-4 border text-left" style={{ borderColor: "var(--border)", background: "var(--bg-input)" }}>
+                <p className="text-xs font-medium mb-2" style={{ color: "var(--text-primary)" }}>First step</p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>Go to <strong>Settings</strong> and add your <strong>OpenAI API key</strong>. Without it, {assistantName || "Zeus"} can't respond.</p>
+              </div>
+
+              <div className="rounded-lg p-4 border text-left" style={{ borderColor: "var(--border)", background: "var(--bg-input)" }}>
+                <p className="text-xs font-medium mb-2" style={{ color: "var(--text-primary)" }}>What you can do today</p>
+                <ul className="space-y-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                  <li>💬 <strong>Chat</strong> — Ask anything, give instructions, delegate work</li>
+                  <li>✅ <strong>Tasks</strong> — Create, prioritize, track with due dates</li>
+                  <li>📅 <strong>Calendar</strong> — Add events, manage your schedule</li>
+                  <li>📧 <strong>Email</strong> — Read, send, and summarize emails</li>
+                  <li>📎 <strong>Files</strong> — Upload PDFs and Excel files for auto-summary</li>
+                  <li>⏰ <strong>Reminders</strong> — "Remind me to..." with recurring support</li>
+                  <li>📝 <strong>Notes</strong> — Pin important info for quick access</li>
+                  <li>🔄 <strong>Automations</strong> — Set up recurring workflows</li>
+                </ul>
+              </div>
+
+              <div className="rounded-lg p-4 border text-left" style={{ borderColor: "var(--border)", background: "var(--bg-input)" }}>
+                <p className="text-xs font-medium mb-2" style={{ color: "var(--text-primary)" }}>What's coming</p>
+                <ul className="space-y-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                  <li>📦 More modules: Finance, Travel, School, Health — and more to come</li>
+                  <li>🤖 Smarter agents that learn your preferences over time</li>
+                  <li>📊 Dashboards and reports tailored to your life</li>
+                </ul>
+                <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
+                  Building your personal AI takes time — start with a few tasks and automations, and it will grow with you.
+                </p>
+              </div>
+
+              <div className="rounded-lg p-4 border text-left" style={{ borderColor: "var(--border)", background: "var(--bg-input)" }}>
+                <p className="text-xs font-medium mb-1" style={{ color: "var(--text-primary)" }}>Feature requests & support</p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Click the <strong>?</strong> button anytime to submit a feature request or report an issue. Requests go to <strong>support.zeus@zephyre.com</strong>.
+                </p>
+              </div>
             </div>
           )}
 

@@ -3,7 +3,7 @@ import { prisma } from "../db.js";
 import { log } from "../logger.js";
 import nodemailer from "nodemailer";
 
-const SUPPORT_EMAIL = "zeus.support@zephyre.com";
+const SUPPORT_EMAIL = "support.zeus@zephyre.com";
 
 export async function supportRoutes(app: FastifyInstance) {
   app.post("/api/support/ticket", async (req) => {
