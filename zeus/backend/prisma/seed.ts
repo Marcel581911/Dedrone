@@ -39,8 +39,8 @@ async function main() {
   const skills = {
     summarize_text: await upsertSkill("summarize_text", "Summarize a given text into key points",
       { text: { type: "string", description: "Text to summarize" } }, ["text"]),
-    create_ticket: await upsertSkill("create_ticket", "Create a new task ticket. The worker will process it automatically.",
-      { title: { type: "string" }, description: { type: "string" }, priority: { type: "string", enum: ["low", "medium", "high", "critical"] } }, ["title"]),
+    create_ticket: await upsertSkill("create_ticket", "Create a new task. Set priority and optional due date.",
+      { title: { type: "string" }, description: { type: "string" }, priority: { type: "string", enum: ["low", "medium", "high", "critical"] }, dueAt: { type: "string", description: "ISO date-time for when this is due" } }, ["title"]),
     assign_ticket: await upsertSkill("assign_ticket", "Assign a ticket to an agent by their ID.",
       { ticketId: { type: "string" }, agentId: { type: "string" } }, ["ticketId", "agentId"]),
     list_agents: await upsertSkill("list_agents", "List all available agents with their IDs, roles, and missions.", {}),

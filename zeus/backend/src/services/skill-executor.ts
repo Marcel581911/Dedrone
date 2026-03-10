@@ -15,19 +15,21 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
     const description = String(args.description || "");
     const priority = String(args.priority || "medium");
     const agentId = args.agentId ? String(args.agentId) : null;
+    const dueAt = args.dueAt ? new Date(String(args.dueAt)) : null;
 
     const ticket = await prisma.ticket.create({
-      data: { title, description, priority, status: "queued", agentId, output: "" },
+      data: { title, description, priority, status: "queued", agentId, output: "", dueAt },
     });
 
-    await log("info", "skill:create_ticket", `Ticket created: "${title}" [${ticket.id}]`, {
+    await log("info", "skill:create_ticket", `Task created: "${title}" [${ticket.id}]`, {
       ticketId: ticket.id, priority,
     });
 
+    const dueStr = dueAt ? ` due ${dueAt.toLocaleDateString()}` : "";
     return {
       success: true,
       data: { ticketId: ticket.id, title, priority, status: "queued" },
-      message: `Ticket "${title}" created (ID: ${ticket.id}, priority: ${priority}, status: queued).`,
+      message: `Task "${title}" created (priority: ${priority}${dueStr}).`,
     };
   },
 

@@ -33,6 +33,7 @@ export async function ticketRoutes(app: FastifyInstance) {
         priority: body.priority || "medium",
         status: body.status || "queued",
         agentId: body.agentId || null,
+        dueAt: body.dueAt ? new Date(body.dueAt) : null,
         output: "",
       },
     });
@@ -48,6 +49,7 @@ export async function ticketRoutes(app: FastifyInstance) {
     if (body.status !== undefined) data.status = body.status;
     if (body.agentId !== undefined) data.agentId = body.agentId;
     if (body.output !== undefined) data.output = body.output;
+    if (body.dueAt !== undefined) data.dueAt = body.dueAt ? new Date(body.dueAt) : null;
     return prisma.ticket.update({ where: { id }, data });
   });
 

@@ -1,115 +1,159 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { Card, PageTitle, Btn, Badge, Input, Select, TextArea, EmptyState } from "../components/ui";
+import { Card, PageTitle, Btn, Badge, Input, Select, TextArea, EmptyState, Label } from "../components/ui";
+
+const PRI_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+const PRI_COLOR: Record<string, string> = { critical: "var(--accent)", high: "#f87171", medium: "var(--text-secondary)", low: "var(--text-muted)" };
 
 export default function Tasks() {
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [agents, setAgents] = useState<any[]>([]);
-  const [showCreate, setShowCreate] = useState(false);
-  const [filter, setFilter] = useState("");
-  const [form, setForm] = useState({ title: "", description: "", priority: "medium", agentId: "" });
-  const [processing, setProcessing] = useState(false);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [filter, setFilter] = useState("active");
+  const [form, setForm] = useState({ title: "", description: "", priority: "medium", dueAt: "" });
 
   const load = () => {
     const p: Record<string, string> = {};
-    if (filter) p.status = filter;
-    api.getTickets(p).then(setTickets);
+    if (filter === "active") { /* fetch all, filter client-side */ }
+    else if (filter !== "all") p.status = filter;
+    api.getTickets(p).then((t) => {
+      let filtered = t;
+      if (filter === "active") filtered = t.filter((x: any) => x.status !== "done");
+      // Sort by priority then due date
+      filtered.sort((a: any, b: any) => {
+        const pa = PRI_ORDER[a.priority] ?? 2;
+        const pb = PRI_ORDER[b.priority] ?? 2;
+        if (pa !== pb) return pa - pb;
+        if (a.dueAt && b.dueAt) return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
+        if (a.dueAt) return -1;
+        if (b.dueAt) return 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      setTasks(filtered);
+    });
   };
-  useEffect(() => { load(); api.getAgents().then(setAgents); }, []);
   useEffect(() => { load(); }, [filter]);
 
   const create = async () => {
     if (!form.title.trim()) return;
-    await api.createTicket({ ...form, agentId: form.agentId || null });
-    setForm({ title: "", description: "", priority: "medium", agentId: "" });
-    setShowCreate(false);
+    await api.createTicket({ ...form, dueAt: form.dueAt || null });
+    setForm({ title: "", description: "", priority: "medium", dueAt: "" });
+    setShowAdd(false);
     load();
   };
 
-  const processNext = async () => {
-    setProcessing(true);
-    try {
-      const r = await api.processTicket();
-      if (!r.processed) alert("No queued tickets.");
-      load();
-    } finally { setProcessing(false); }
+  const markDone = async (id: string) => {
+    await api.updateTicket(id, { status: "done" });
+    load();
   };
 
-  const statusColor = (s: string) => {
-    const m: Record<string, "blue" | "amber" | "green" | "red" | "gray"> = { queued: "blue", in_progress: "amber", done: "green", failed: "red", blocked: "gray" };
-    return m[s] || "gray";
+  const reopen = async (id: string) => {
+    await api.updateTicket(id, { status: "queued" });
+    load();
   };
+
+  const remove = async (id: string) => {
+    if (!confirm("Delete this task?")) return;
+    await api.deleteTicket(id);
+    load();
+  };
+
+  const isOverdue = (t: any) => t.dueAt && new Date(t.dueAt) < new Date() && t.status !== "done";
+  const now = new Date();
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-3xl">
       <div className="flex items-center justify-between mb-5">
         <PageTitle>Tasks</PageTitle>
-        <div className="flex gap-2">
-          <Btn onClick={processNext} disabled={processing}>{processing ? "..." : "Process Next"}</Btn>
-          <Btn variant="primary" onClick={() => setShowCreate(!showCreate)}>+ New</Btn>
-        </div>
+        <Btn variant="primary" onClick={() => setShowAdd(!showAdd)}>+ Add task</Btn>
       </div>
 
+      {/* Filters */}
       <div className="flex gap-1.5 mb-4">
-        {["", "queued", "in_progress", "done", "failed"].map((s) => (
-          <button key={s} onClick={() => setFilter(s)}
-            className="px-3 py-1 rounded-md text-xs transition-colors"
-            style={{ background: filter === s ? "var(--accent-bg)" : "var(--bg-input)", color: filter === s ? "var(--accent)" : "var(--text-muted)", border: `1px solid ${filter === s ? "var(--accent)" : "var(--border)"}` }}>
-            {s || "All"}
+        {[["active", "Active"], ["all", "All"], ["done", "Done"], ["failed", "Failed"]].map(([k, label]) => (
+          <button key={k} onClick={() => setFilter(k)} className="px-3 py-1 rounded-md text-xs transition-colors"
+            style={{ background: filter === k ? "var(--accent-bg)" : "var(--bg-input)", color: filter === k ? "var(--accent)" : "var(--text-muted)", border: `1px solid ${filter === k ? "var(--accent)" : "var(--border)"}` }}>
+            {label}
           </button>
         ))}
       </div>
 
-      {showCreate && (
-        <Card className="mb-5">
+      {/* Quick add */}
+      {showAdd && (
+        <Card className="mb-4">
           <div className="space-y-3">
-            <Input placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            <TextArea placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={{ minHeight: 60 }} />
-            <div className="grid grid-cols-2 gap-3">
-              <Select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
-                <option value="low">Low</option><option value="medium">Medium</option>
-                <option value="high">High</option><option value="critical">Critical</option>
-              </Select>
-              <Select value={form.agentId} onChange={(e) => setForm({ ...form, agentId: e.target.value })}>
-                <option value="">Unassigned</option>
-                {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </Select>
+            <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="What needs to be done?" autoFocus
+              onKeyDown={(e) => e.key === "Enter" && !form.description && create()} />
+            <TextArea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Details (optional)" style={{ minHeight: 50 }} />
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label>Priority</Label>
+                <Select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="w-full">
+                  <option value="low">Low</option><option value="medium">Medium</option>
+                  <option value="high">High</option><option value="critical">Critical</option>
+                </Select>
+              </div>
+              <div>
+                <Label>Due date</Label>
+                <Input type="datetime-local" value={form.dueAt} onChange={(e) => setForm({ ...form, dueAt: e.target.value })} />
+              </div>
+              <div className="flex items-end gap-2">
+                <Btn variant="primary" onClick={create}>Add</Btn>
+                <Btn onClick={() => setShowAdd(false)}>Cancel</Btn>
+              </div>
             </div>
-          </div>
-          <div className="flex gap-2 mt-3">
-            <Btn variant="primary" onClick={create}>Create</Btn>
-            <Btn onClick={() => setShowCreate(false)}>Cancel</Btn>
           </div>
         </Card>
       )}
 
-      <div className="space-y-2">
-        {tickets.map((t) => (
-          <Card key={t.id}>
-            <div className="flex items-start justify-between">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{t.title}</span>
-                  <Badge color={statusColor(t.status)}>{t.status}</Badge>
-                  <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{t.priority}</span>
-                </div>
-                {t.description && <p className="text-xs mb-1" style={{ color: "var(--text-secondary)" }}>{t.description}</p>}
-                <div className="flex gap-3 text-[10px]" style={{ color: "var(--text-muted)" }}>
-                  <span>{t.agent?.name || "Unassigned"}</span>
-                  <span>{new Date(t.createdAt).toLocaleString()}</span>
-                </div>
-                {t.output && (
-                  <div className="mt-2 rounded p-2.5 text-xs" style={{ background: "var(--bg-input)", color: "var(--text-secondary)" }}>
-                    <p className="whitespace-pre-wrap">{t.output.slice(0, 400)}{t.output.length > 400 ? "..." : ""}</p>
-                  </div>
+      {/* Task list */}
+      <div className="space-y-1.5">
+        {tasks.map((t) => (
+          <div key={t.id} className="group flex items-start gap-3 rounded-lg border px-4 py-3 transition-colors hover:border-[var(--border-hover)]"
+            style={{ background: "var(--bg-card)", borderColor: isOverdue(t) ? "rgba(239,68,68,0.3)" : "var(--border)" }}>
+            {/* Checkbox */}
+            <button onClick={() => t.status === "done" ? reopen(t.id) : markDone(t.id)}
+              className="mt-0.5 w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors"
+              style={{ borderColor: t.status === "done" ? "#4ade80" : "var(--border)", background: t.status === "done" ? "#4ade80" : "transparent" }}>
+              {t.status === "done" && <svg viewBox="0 0 12 12" fill="none" className="w-2.5 h-2.5"><path d="M2 6l3 3 5-5" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+            </button>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className={`text-sm ${t.status === "done" ? "line-through" : ""}`}
+                  style={{ color: t.status === "done" ? "var(--text-muted)" : "var(--text-primary)" }}>
+                  {t.title}
+                </span>
+                {t.status !== "done" && (
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: PRI_COLOR[t.priority] }} title={t.priority} />
                 )}
+                {t.status === "in_progress" && <Badge color="amber">working</Badge>}
               </div>
-              <button onClick={() => { if (confirm("Delete?")) { api.deleteTicket(t.id); load(); } }}
-                className="text-xs ml-3 opacity-30 hover:opacity-100" style={{ color: "#f87171" }}>Delete</button>
+              {t.description && <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{t.description}</p>}
+              <div className="flex gap-3 mt-1 text-[10px]" style={{ color: "var(--text-muted)" }}>
+                {t.dueAt && (
+                  <span style={{ color: isOverdue(t) ? "#f87171" : "var(--text-muted)" }}>
+                    {isOverdue(t) ? "Overdue: " : "Due: "}
+                    {new Date(t.dueAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+                    {!new Date(t.dueAt).toTimeString().startsWith("00:00") && ` ${new Date(t.dueAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+                  </span>
+                )}
+                {t.agent?.name && <span>{t.agent.name}</span>}
+              </div>
+              {t.output && t.status === "done" && (
+                <p className="text-xs mt-1 rounded p-2" style={{ background: "var(--bg-input)", color: "var(--text-muted)" }}>
+                  {t.output.slice(0, 150)}{t.output.length > 150 ? "..." : ""}
+                </p>
+              )}
             </div>
-          </Card>
+
+            {/* Actions */}
+            <button onClick={() => remove(t.id)} className="text-[10px] opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity" style={{ color: "#f87171" }}>
+              Delete
+            </button>
+          </div>
         ))}
-        {tickets.length === 0 && <EmptyState>No tickets found.</EmptyState>}
+        {tasks.length === 0 && <EmptyState>{filter === "active" ? "No active tasks. You're all caught up!" : "No tasks found."}</EmptyState>}
       </div>
     </div>
   );
