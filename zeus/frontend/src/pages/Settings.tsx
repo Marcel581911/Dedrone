@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api";
 import { Card, PageTitle, Btn, Input, Label, Badge, EmptyState } from "../components/ui";
 
-type Tab = "connections" | "agents" | "skills" | "logs" | "access";
+type Tab = "connections" | "agents" | "skills" | "logs" | "access" | "update";
 
 export default function Settings() {
   const [tab, setTab] = useState<Tab>("connections");
@@ -14,6 +14,7 @@ export default function Settings() {
     { key: "skills", label: "Skills" },
     { key: "logs", label: "Logs" },
     { key: "access", label: "Access" },
+    { key: "update", label: "Update" },
   ];
 
   return (
@@ -36,6 +37,7 @@ export default function Settings() {
       {tab === "skills" && <SkillsTab />}
       {tab === "logs" && <LogsTab />}
       {tab === "access" && <AccessTab />}
+      {tab === "update" && <UpdateTab />}
     </div>
   );
 }
@@ -364,6 +366,102 @@ function AccessTab() {
           <Btn onClick={changePw} disabled={changing}>{changing ? "..." : "Change"}</Btn>
         </div>
       </Card>
+    </div>
+  );
+}
+
+function UpdateTab() {
+  const [version, setVersion] = useState<any>(null);
+  const [check, setCheck] = useState<any>(null);
+  const [checking, setChecking] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [updateResult, setUpdateResult] = useState<any>(null);
+
+  useEffect(() => { api.getVersion().then(setVersion); }, []);
+
+  const checkForUpdates = async () => {
+    setChecking(true);
+    setCheck(null);
+    try { setCheck(await api.checkUpdate()); }
+    catch (e: any) { setCheck({ error: e.message }); }
+    finally { setChecking(false); }
+  };
+
+  const applyUpdate = async () => {
+    if (!confirm("This will update ZEUS and restart the service. Continue?")) return;
+    setUpdating(true);
+    try {
+      const r = await api.applyUpdate();
+      setUpdateResult(r);
+      if (r.success) {
+        setTimeout(() => window.location.reload(), 5000);
+      }
+    } catch (e: any) { setUpdateResult({ success: false, error: e.message }); }
+    finally { setUpdating(false); }
+  };
+
+  return (
+    <div className="max-w-xl space-y-4">
+      {/* Current version */}
+      <Card>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Current version</h3>
+          <span className="text-sm font-mono" style={{ color: "var(--accent)" }}>v{version?.current || "..."}</span>
+        </div>
+        <Btn onClick={checkForUpdates} disabled={checking}>{checking ? "Checking..." : "Check for updates"}</Btn>
+
+        {check && !check.error && (
+          <div className="mt-3 rounded-lg p-3 border" style={{ borderColor: check.upToDate ? "var(--border)" : "var(--accent)", background: check.upToDate ? "var(--bg-input)" : "var(--accent-bg)" }}>
+            {check.upToDate ? (
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>You're on the latest version.</p>
+            ) : (
+              <div>
+                <p className="text-xs font-medium mb-2" style={{ color: "var(--accent)" }}>
+                  Update available ({check.commitsAhead} change{check.commitsAhead > 1 ? "s" : ""})
+                </p>
+                <Btn variant="primary" onClick={applyUpdate} disabled={updating}>
+                  {updating ? "Updating... (this may take a minute)" : "Install update"}
+                </Btn>
+              </div>
+            )}
+          </div>
+        )}
+
+        {check?.error && <p className="text-xs mt-2" style={{ color: "#f87171" }}>{check.error}</p>}
+
+        {updateResult && (
+          <div className="mt-3 rounded-lg p-3" style={{ background: updateResult.success ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)" }}>
+            <p className="text-xs" style={{ color: updateResult.success ? "#4ade80" : "#f87171" }}>
+              {updateResult.success ? `${updateResult.message} Page will reload in 5 seconds.` : updateResult.error}
+            </p>
+          </div>
+        )}
+      </Card>
+
+      {/* Changelog */}
+      {version?.changelog && (
+        <Card>
+          <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-primary)" }}>What's new</h3>
+          <div className="space-y-4">
+            {(check?.remoteChangelog?.length > 0 ? check.remoteChangelog : version.changelog).map((entry: any) => (
+              <div key={entry.version}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-xs font-mono font-medium" style={{ color: "var(--accent)" }}>v{entry.version}</span>
+                  <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{entry.date}</span>
+                </div>
+                {entry.title && <p className="text-xs font-medium mb-1" style={{ color: "var(--text-primary)" }}>{entry.title}</p>}
+                <ul className="space-y-0.5">
+                  {entry.changes.map((c: string, i: number) => (
+                    <li key={i} className="text-xs flex gap-1.5" style={{ color: "var(--text-muted)" }}>
+                      <span style={{ color: "var(--text-secondary)" }}>·</span> {c}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

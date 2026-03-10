@@ -139,4 +139,9 @@ export const api = {
 
   // Weather
   getWeather: () => request<any>("/weather"),
+
+  // Updates
+  getVersion: () => request<any>("/version"),
+  checkUpdate: () => request<any>("/version/check", { method: "POST" }),
+  applyUpdate: () => request<any>("/version/update", { method: "POST" }),
 };
