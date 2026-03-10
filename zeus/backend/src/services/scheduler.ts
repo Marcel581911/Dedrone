@@ -50,6 +50,12 @@ const BUILTIN_TASKS: Record<string, () => Promise<string>> = {
       return `Email sync skipped: ${e.message}`;
     }
   },
+
+  memory_prune: async () => {
+    const { pruneMemories } = await import("./memory.js");
+    const count = await pruneMemories();
+    return count > 0 ? `Pruned ${count} old memories` : "No memories to prune";
+  },
 };
 
 async function runTask(task: any): Promise<void> {

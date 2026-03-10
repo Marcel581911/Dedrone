@@ -1,6 +1,7 @@
 import { prisma } from "../db.js";
 import { log } from "../logger.js";
 import { chatWithAgent } from "./chat.js";
+import { storeMemory } from "./memory.js";
 
 const POLL_INTERVAL = 5000;
 
@@ -59,14 +60,12 @@ async function processNextTicket(): Promise<boolean> {
       data: { status: "done", output: result.message.content },
     });
 
-    await prisma.memory.create({
-      data: {
-        agentId: ticket.agent.id,
-        type: "ticket_result",
-        content: `Completed ticket "${ticket.title}": ${result.message.content.slice(0, 500)}`,
-        ticketId: ticket.id,
-      },
-    });
+    await storeMemory(
+      ticket.agent.id,
+      `Completed ticket "${ticket.title}": ${result.message.content.slice(0, 2000)}`,
+      "ticket_result",
+      { ticketId: ticket.id }
+    );
 
     await log("info", "worker", `Ticket completed: "${ticket.title}"`, { ticketId: ticket.id });
     console.log(`  [worker] Completed: "${ticket.title}"`);

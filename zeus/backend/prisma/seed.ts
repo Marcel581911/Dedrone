@@ -149,6 +149,7 @@ async function main() {
     { name: "log_cleanup", description: "Remove log entries older than 7 days", intervalMin: 1440, agentId: systemAgent.id, taskType: "system" },
     { name: "stale_ticket_check", description: "Detect tickets stuck in_progress for >24h and mark as failed", intervalMin: 120, agentId: systemAgent.id, taskType: "system" },
     { name: "email_sync", description: "Sync new emails from IMAP inbox", intervalMin: 15, agentId: systemAgent.id, taskType: "email" },
+    { name: "memory_prune", description: "Remove old low-relevance memories to keep the system clean (max 500 per agent)", intervalMin: 1440, agentId: systemAgent.id, taskType: "system" },
   ];
 
   for (const t of tasks) {

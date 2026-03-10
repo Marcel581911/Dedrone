@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { prisma } from "../db.js";
 import { log } from "../logger.js";
 import { executeSkill } from "./skill-executor.js";
+import { searchMemory, storeMemory } from "./memory.js";
 
 const MAX_TOOL_ROUNDS = 5;
 
@@ -34,6 +35,16 @@ export async function chatWithAgent(agentId: string, conversationId: string, use
 
   const systemPrompt = await buildSystemPrompt(agent, enabledSkills);
 
+  // Retrieve relevant memories via semantic search
+  const relevantMemories = await searchMemory(agentId, userMessage, 6);
+  let memoryContext = "";
+  if (relevantMemories.length > 0) {
+    const memoryLines = relevantMemories.map((m) =>
+      `[${m.type}] ${m.content.slice(0, 400)}`
+    );
+    memoryContext = `\n\n## Relevant Context from Memory\nThe following information was retrieved from your memory and may be relevant:\n${memoryLines.join("\n\n")}`;
+  }
+
   const tools: OpenAI.ChatCompletionTool[] = enabledSkills.map((skill) => ({
     type: "function" as const,
     function: {
@@ -43,9 +54,8 @@ export async function chatWithAgent(agentId: string, conversationId: string, use
     },
   }));
 
-  // Conversation history for the API call
   const apiMessages: OpenAI.ChatCompletionMessageParam[] = [
-    { role: "system", content: systemPrompt },
+    { role: "system", content: systemPrompt + memoryContext },
     ...previousMessages.map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,

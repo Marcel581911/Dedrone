@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../db.js";
+import { storeMemory, searchMemory } from "../services/memory.js";
 
 export async function agentRoutes(app: FastifyInstance) {
   app.get("/api/agents", async () => {
@@ -125,13 +126,13 @@ export async function agentRoutes(app: FastifyInstance) {
   app.post("/api/agents/:id/memory", async (req) => {
     const { id } = req.params as { id: string };
     const body = req.body as any;
-    return prisma.memory.create({
-      data: {
-        agentId: id,
-        type: body.type || "note",
-        content: body.content,
-        ticketId: body.ticketId || null,
-      },
-    });
+    await storeMemory(id, body.content, body.type || "note", { ticketId: body.ticketId });
+    return { success: true };
+  });
+
+  app.post("/api/agents/:id/memory/search", async (req) => {
+    const { id } = req.params as { id: string };
+    const { query, limit } = req.body as { query: string; limit?: number };
+    return searchMemory(id, query, limit || 8);
   });
 }
