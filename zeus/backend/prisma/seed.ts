@@ -52,10 +52,16 @@ async function main() {
       { to: { type: "string" }, subject: { type: "string" }, body: { type: "string" } }, ["to", "subject"]),
     create_automation: await upsertSkill("create_automation", "Create a new automation definition.",
       { what: { type: "string" }, systems: { type: "string" }, frequency: { type: "string" }, dataSource: { type: "string" }, delivery: { type: "string" } }, ["what"]),
-    create_agent: await upsertSkill("create_agent", "Create a new agent to handle specific tasks. Use when a specialized agent is needed.",
-      { name: { type: "string", description: "Agent name" }, role: { type: "string", description: "Agent role" }, mission: { type: "string", description: "What the agent does" }, description: { type: "string" } }, ["name", "role"]),
+    create_agent: await upsertSkill("create_agent", "Create a new agent to handle specific tasks.",
+      { name: { type: "string" }, role: { type: "string" }, mission: { type: "string" }, description: { type: "string" } }, ["name", "role"]),
     manage_agent: await upsertSkill("manage_agent", "Enable or disable an existing agent.",
       { agentId: { type: "string" }, action: { type: "string", enum: ["enable", "disable"] } }, ["agentId", "action"]),
+    set_reminder: await upsertSkill("set_reminder", "Set a reminder for the user at a specific date/time.",
+      { title: { type: "string", description: "What to remind about" }, dueAt: { type: "string", description: "ISO date-time string" }, recurring: { type: "string", description: "daily, weekly, monthly, or empty" } }, ["title", "dueAt"]),
+    add_calendar_event: await upsertSkill("add_calendar_event", "Add an event to the user's calendar.",
+      { title: { type: "string" }, startAt: { type: "string", description: "ISO date-time" }, endAt: { type: "string" }, location: { type: "string" }, allDay: { type: "boolean" } }, ["title", "startAt"]),
+    save_note: await upsertSkill("save_note", "Save a note to the user's pinboard.",
+      { title: { type: "string" }, content: { type: "string" }, pinned: { type: "boolean" } }, ["content"]),
   };
 
   // ── Agents ──────────────────────────────────────
@@ -130,6 +136,9 @@ async function main() {
     [orchestrator.id, skills.create_automation.id],
     [orchestrator.id, skills.create_agent.id],
     [orchestrator.id, skills.manage_agent.id],
+    [orchestrator.id, skills.set_reminder.id],
+    [orchestrator.id, skills.add_calendar_event.id],
+    [orchestrator.id, skills.save_note.id],
     // Researcher gets summarization + email reading
     [researcher.id, skills.summarize_text.id],
     [researcher.id, skills.read_emails.id],
@@ -151,6 +160,9 @@ async function main() {
     { name: "email_sync", description: "Sync new emails from IMAP inbox", intervalMin: 15, agentId: systemAgent.id, taskType: "email" },
     { name: "memory_prune", description: "Remove old low-relevance memories to keep the system clean (max 500 per agent)", intervalMin: 1440, agentId: systemAgent.id, taskType: "system" },
     { name: "prompt_optimize", description: "Analyze token usage across agents and report optimization opportunities", intervalMin: 1440, agentId: systemAgent.id, taskType: "system" },
+    { name: "reminder_check", description: "Check for due reminders and notify the user", intervalMin: 1, agentId: systemAgent.id, taskType: "system" },
+    { name: "daily_digest", description: "Generate daily activity summary", intervalMin: 1440, agentId: systemAgent.id, taskType: "system" },
+    { name: "auto_backup", description: "Create daily database backup (keep last 7)", intervalMin: 1440, agentId: systemAgent.id, taskType: "system" },
   ];
 
   for (const t of tasks) {

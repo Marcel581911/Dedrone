@@ -93,4 +93,45 @@ export const api = {
   updateModuleConfig: (slug: string, config: Record<string, string>) =>
     request<any>(`/modules/${slug}/config`, { method: "PUT", body: JSON.stringify(config) }),
   activateModule: (slug: string) => request<any>(`/modules/${slug}/activate`, { method: "POST" }),
+
+  // Reminders
+  getReminders: () => request<any[]>("/reminders"),
+  createReminder: (data: any) => request<any>("/reminders", { method: "POST", body: JSON.stringify(data) }),
+  deleteReminder: (id: string) => request<any>(`/reminders/${id}`, { method: "DELETE" }),
+
+  // Notifications
+  getNotifications: (unread?: boolean) => request<any[]>(`/notifications${unread ? "?unread=true" : ""}`),
+  notifCount: () => request<any>("/notifications/count"),
+  readNotif: (id: string) => request<any>(`/notifications/${id}/read`, { method: "POST" }),
+  readAllNotifs: () => request<any>("/notifications/read-all", { method: "POST" }),
+
+  // Calendar
+  getEvents: (start?: string, end?: string) => {
+    const p = new URLSearchParams();
+    if (start) p.set("start", start);
+    if (end) p.set("end", end);
+    const qs = p.toString();
+    return request<any[]>(`/calendar${qs ? "?" + qs : ""}`);
+  },
+  createEvent: (data: any) => request<any>("/calendar", { method: "POST", body: JSON.stringify(data) }),
+  updateEvent: (id: string, data: any) => request<any>(`/calendar/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteEvent: (id: string) => request<any>(`/calendar/${id}`, { method: "DELETE" }),
+
+  // Notes
+  getNotes: () => request<any[]>("/notes"),
+  createNote: (data: any) => request<any>("/notes", { method: "POST", body: JSON.stringify(data) }),
+  updateNote: (id: string, data: any) => request<any>(`/notes/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteNote: (id: string) => request<any>(`/notes/${id}`, { method: "DELETE" }),
+
+  // Search
+  search: (q: string) => request<any>(`/search?q=${encodeURIComponent(q)}`),
+
+  // Usage / Cost
+  getUsage: (period?: string) => request<any>(`/usage${period ? "?period=" + period : ""}`),
+  setUsageLimit: (limit: number) => request<any>("/usage/limit", { method: "PUT", body: JSON.stringify({ limit }) }),
+
+  // Export / Backup
+  createBackup: () => request<any>("/backup", { method: "POST" }),
+  getBackups: () => request<any>("/backups"),
+  restoreBackup: (name: string) => request<any>(`/backup/restore/${name}`, { method: "POST" }),
 };

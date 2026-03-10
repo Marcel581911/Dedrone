@@ -199,6 +199,61 @@ model Module {
   updatedAt     DateTime @updatedAt
 }
 
+model Reminder {
+  id        String    @id @default(uuid())
+  title     String
+  dueAt     DateTime
+  recurring String    @default("")
+  status    String    @default("pending")
+  notified  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String   @default("info")
+  title     String
+  body      String   @default("")
+  read      Boolean  @default(false)
+  link      String   @default("")
+  createdAt DateTime @default(now())
+}
+
+model CalendarEvent {
+  id          String   @id @default(uuid())
+  title       String
+  description String   @default("")
+  startAt     DateTime
+  endAt       DateTime?
+  allDay      Boolean  @default(false)
+  location    String   @default("")
+  source      String   @default("manual")
+  sourceId    String   @default("")
+  color       String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Note {
+  id        String   @id @default(uuid())
+  title     String   @default("")
+  content   String
+  pinned    Boolean  @default(false)
+  color     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ApiUsage {
+  id          String   @id @default(uuid())
+  model       String
+  promptTokens    Int  @default(0)
+  completionTokens Int @default(0)
+  totalTokens     Int  @default(0)
+  estimatedCost   Float @default(0)
+  createdAt   DateTime @default(now())
+}
+
 model LogEntry {
   id        String   @id @default(uuid())
   level     String   @default("info")

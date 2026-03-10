@@ -4,6 +4,7 @@ import { log } from "../logger.js";
 import { executeSkill } from "./skill-executor.js";
 import { searchMemory, storeMemory } from "./memory.js";
 import { optimizeForChat } from "./prompt-optimizer.js";
+import { trackUsage } from "../routes/usage.js";
 
 const MAX_TOOL_ROUNDS = 5;
 
@@ -85,6 +86,11 @@ export async function chatWithAgent(agentId: string, conversationId: string, use
         max_tokens: agent.maxTokens,
         ...(tools.length > 0 ? { tools } : {}),
       });
+
+      // Track API usage
+      if (completion.usage) {
+        trackUsage(agent.model, completion.usage.prompt_tokens, completion.usage.completion_tokens).catch(() => {});
+      }
 
       const choice = completion.choices[0];
       const msg = choice.message;

@@ -150,6 +150,57 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
     };
   },
 
+  set_reminder: async (args) => {
+    const title = String(args.title || "");
+    const dueAt = String(args.dueAt || "");
+    const recurring = String(args.recurring || "");
+    if (!title || !dueAt) return { success: false, data: {}, message: "Title and dueAt are required." };
+
+    const date = new Date(dueAt);
+    if (isNaN(date.getTime())) return { success: false, data: {}, message: "Invalid date format. Use ISO format." };
+
+    const reminder = await prisma.reminder.create({
+      data: { title, dueAt: date, recurring },
+    });
+    return { success: true, data: { reminderId: reminder.id }, message: `Reminder set: "${title}" for ${date.toLocaleString()}${recurring ? ` (${recurring})` : ""}` };
+  },
+
+  add_calendar_event: async (args) => {
+    const title = String(args.title || "");
+    const startAt = String(args.startAt || "");
+    if (!title || !startAt) return { success: false, data: {}, message: "Title and startAt are required." };
+
+    const start = new Date(startAt);
+    if (isNaN(start.getTime())) return { success: false, data: {}, message: "Invalid date format." };
+
+    const event = await prisma.calendarEvent.create({
+      data: {
+        title,
+        startAt: start,
+        endAt: args.endAt ? new Date(String(args.endAt)) : null,
+        location: String(args.location || ""),
+        allDay: Boolean(args.allDay),
+        description: String(args.description || ""),
+        source: "assistant",
+      },
+    });
+    return { success: true, data: { eventId: event.id }, message: `Event "${title}" added to calendar on ${start.toLocaleDateString()}` };
+  },
+
+  save_note: async (args) => {
+    const content = String(args.content || "");
+    if (!content) return { success: false, data: {}, message: "Content is required." };
+
+    const note = await prisma.note.create({
+      data: {
+        title: String(args.title || ""),
+        content,
+        pinned: Boolean(args.pinned),
+      },
+    });
+    return { success: true, data: { noteId: note.id }, message: `Note saved${args.title ? `: "${args.title}"` : ""}.` };
+  },
+
   create_agent: async (args) => {
     const name = String(args.name || "");
     const role = String(args.role || "");

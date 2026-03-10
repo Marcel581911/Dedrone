@@ -51,6 +51,77 @@ const BUILTIN_TASKS: Record<string, () => Promise<string>> = {
     }
   },
 
+  reminder_check: async () => {
+    const now = new Date();
+    const due = await prisma.reminder.findMany({
+      where: { status: "pending", notified: false, dueAt: { lte: now } },
+    });
+    if (due.length === 0) return "No due reminders";
+
+    const { createNotification } = await import("../routes/notifications.js");
+    for (const r of due) {
+      await createNotification("reminder", `Reminder: ${r.title}`, `Due: ${r.dueAt.toLocaleString()}`);
+      await prisma.reminder.update({ where: { id: r.id }, data: { notified: true, status: "done" } });
+
+      // Handle recurring
+      if (r.recurring) {
+        const next = new Date(r.dueAt);
+        if (r.recurring === "daily") next.setDate(next.getDate() + 1);
+        else if (r.recurring === "weekly") next.setDate(next.getDate() + 7);
+        else if (r.recurring === "monthly") next.setMonth(next.getMonth() + 1);
+
+        if (r.recurring) {
+          await prisma.reminder.create({
+            data: { title: r.title, dueAt: next, recurring: r.recurring },
+          });
+        }
+      }
+    }
+    await log("info", "system-agent", `Processed ${due.length} reminder(s)`);
+    return `${due.length} reminder(s) triggered`;
+  },
+
+  daily_digest: async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const [completedTasks, upcomingEvents, pendingReminders] = await Promise.all([
+      prisma.ticket.count({ where: { status: "done", updatedAt: { gte: today } } }),
+      prisma.calendarEvent.count({ where: { startAt: { gte: today, lt: tomorrow } } }),
+      prisma.reminder.count({ where: { status: "pending", dueAt: { gte: today, lt: tomorrow } } }),
+    ]);
+
+    const digest = `Daily digest: ${completedTasks} tasks done, ${upcomingEvents} events today, ${pendingReminders} reminders pending`;
+    const { createNotification } = await import("../routes/notifications.js");
+    await createNotification("digest", "Daily Summary", digest);
+    await log("info", "system-agent", digest);
+    return digest;
+  },
+
+  auto_backup: async () => {
+    const dbPath = (await import("path")).resolve(import.meta.dirname, "../../../data/zeus.db");
+    const backupDir = (await import("path")).resolve(import.meta.dirname, "../../../data/backups");
+    const fs = await import("fs");
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+    if (!fs.existsSync(dbPath)) return "No database to backup";
+
+    const name = `auto-${new Date().toISOString().slice(0, 10)}.db`;
+    const dest = (await import("path")).join(backupDir, name);
+    if (fs.existsSync(dest)) return "Today's backup already exists";
+
+    fs.copyFileSync(dbPath, dest);
+
+    // Clean old backups (keep last 7)
+    const backups = fs.readdirSync(backupDir).filter((f: string) => f.startsWith("auto-")).sort().reverse();
+    for (const old of backups.slice(7)) {
+      fs.unlinkSync((await import("path")).join(backupDir, old));
+    }
+
+    return `Backup created: ${name}`;
+  },
+
   prompt_optimize: async () => {
     const { analyzeTokenUsage } = await import("./prompt-optimizer.js");
     return analyzeTokenUsage();

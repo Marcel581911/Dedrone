@@ -18,6 +18,13 @@ import { emailRoutes } from "./routes/email.js";
 import { moduleRoutes } from "./routes/modules.js";
 import { fileRoutes } from "./routes/files.js";
 import { supportRoutes } from "./routes/support.js";
+import { reminderRoutes } from "./routes/reminders.js";
+import { notificationRoutes } from "./routes/notifications.js";
+import { calendarRoutes } from "./routes/calendar.js";
+import { noteRoutes } from "./routes/notes.js";
+import { searchRoutes } from "./routes/search.js";
+import { dataExportRoutes } from "./routes/data-export.js";
+import { usageRoutes } from "./routes/usage.js";
 import multipart from "@fastify/multipart";
 import { log } from "./logger.js";
 import { startWorker } from "./services/worker.js";
@@ -72,6 +79,13 @@ await app.register(emailRoutes);
 await app.register(moduleRoutes);
 await app.register(fileRoutes);
 await app.register(supportRoutes);
+await app.register(reminderRoutes);
+await app.register(notificationRoutes);
+await app.register(calendarRoutes);
+await app.register(noteRoutes);
+await app.register(searchRoutes);
+await app.register(dataExportRoutes);
+await app.register(usageRoutes);
 
 // Serve frontend build (production mode)
 const frontendDist = path.resolve(import.meta.dirname, "../../frontend/dist");
