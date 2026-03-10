@@ -76,6 +76,7 @@ model Ticket {
   description String    @default("")
   priority    String    @default("medium")
   status      String    @default("queued")
+  category    String    @default("Personal")
   agentId     String?
   output      String    @default("")
   dueAt       DateTime?
