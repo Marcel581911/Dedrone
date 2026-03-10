@@ -1,14 +1,7 @@
 import { prisma } from "./db.js";
 import fs from "fs";
 import path from "path";
-
-const LOG_DIR = path.resolve(import.meta.dirname, "../../data/logs");
-
-function ensureLogDir() {
-  if (!fs.existsSync(LOG_DIR)) {
-    fs.mkdirSync(LOG_DIR, { recursive: true });
-  }
-}
+import { getDataDir } from "./services/paths.js";
 
 export async function log(
   level: "info" | "warn" | "error" | "debug",
@@ -16,17 +9,16 @@ export async function log(
   message: string,
   meta: Record<string, unknown> = {}
 ) {
-  ensureLogDir();
-  const timestamp = new Date().toISOString();
-  const line = `[${timestamp}] [${level.toUpperCase()}] [${source}] ${message}\n`;
-  const logFile = path.join(LOG_DIR, `${new Date().toISOString().slice(0, 10)}.log`);
-  fs.appendFileSync(logFile, line);
+  try {
+    const logDir = path.join(getDataDir(), "logs");
+    if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
+    const line = `[${new Date().toISOString()}] [${level.toUpperCase()}] [${source}] ${message}\n`;
+    fs.appendFileSync(path.join(logDir, `${new Date().toISOString().slice(0, 10)}.log`), line);
+  } catch {}
 
   try {
     await prisma.logEntry.create({
       data: { level, source, message, meta: JSON.stringify(meta) },
     });
-  } catch {
-    // DB might not be ready during bootstrap
-  }
+  } catch {}
 }

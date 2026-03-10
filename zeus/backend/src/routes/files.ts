@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../db.js";
 import { log } from "../logger.js";
+import { getDataDir } from "../services/paths.js";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -9,7 +10,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per file
 const MAX_STORAGE = 1024 * 1024 * 1024; // 1GB total
 
 function getWorkspaceDir(): string {
-  const dir = path.resolve(import.meta.dirname, "../../../data/workspace");
+  const dir = path.join(getDataDir(), "workspace");
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
 }

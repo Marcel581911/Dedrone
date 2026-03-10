@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../db.js";
 import fs from "fs";
 import path from "path";
+import { getDataDir, getDbPath } from "../services/paths.js";
 
 export async function dataExportRoutes(app: FastifyInstance) {
   app.get("/api/export", async (_req, reply) => {
@@ -30,10 +31,9 @@ export async function dataExportRoutes(app: FastifyInstance) {
     return data;
   });
 
-  // Backup management
   app.post("/api/backup", async () => {
-    const dbPath = path.resolve(import.meta.dirname, "../../../data/zeus.db");
-    const backupDir = path.resolve(import.meta.dirname, "../../../data/backups");
+    const dbPath = getDbPath();
+    const backupDir = path.join(getDataDir(), "backups");
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
 
     const backupName = `zeus-${new Date().toISOString().replace(/[:.]/g, "-")}.db`;
@@ -46,7 +46,7 @@ export async function dataExportRoutes(app: FastifyInstance) {
   });
 
   app.get("/api/backups", async () => {
-    const backupDir = path.resolve(import.meta.dirname, "../../../data/backups");
+    const backupDir = path.join(getDataDir(), "backups");
     if (!fs.existsSync(backupDir)) return { backups: [] };
     const files = fs.readdirSync(backupDir)
       .filter((f) => f.endsWith(".db"))
@@ -60,16 +60,14 @@ export async function dataExportRoutes(app: FastifyInstance) {
 
   app.post("/api/backup/restore/:name", async (req) => {
     const { name } = req.params as { name: string };
-    const backupDir = path.resolve(import.meta.dirname, "../../../data/backups");
+    const backupDir = path.join(getDataDir(), "backups");
     const backupPath = path.join(backupDir, name);
-    const dbPath = path.resolve(import.meta.dirname, "../../../data/zeus.db");
+    const dbPath = getDbPath();
 
     if (!fs.existsSync(backupPath)) return { success: false, error: "Backup not found" };
 
-    // Create a safety backup before restoring
     const safetyName = `pre-restore-${new Date().toISOString().replace(/[:.]/g, "-")}.db`;
     fs.copyFileSync(dbPath, path.join(backupDir, safetyName));
-
     fs.copyFileSync(backupPath, dbPath);
     return { success: true, message: `Restored from ${name}. Restart the service to apply.` };
   });

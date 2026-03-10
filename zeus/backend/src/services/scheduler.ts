@@ -101,23 +101,22 @@ const BUILTIN_TASKS: Record<string, () => Promise<string>> = {
   },
 
   auto_backup: async () => {
-    const dbPath = (await import("path")).resolve(import.meta.dirname, "../../../data/zeus.db");
-    const backupDir = (await import("path")).resolve(import.meta.dirname, "../../../data/backups");
+    const { getDbPath, getDataDir } = await import("./paths.js");
+    const pathMod = await import("path");
     const fs = await import("fs");
+    const dbPath = getDbPath();
+    const backupDir = pathMod.join(getDataDir(), "backups");
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
     if (!fs.existsSync(dbPath)) return "No database to backup";
 
     const name = `auto-${new Date().toISOString().slice(0, 10)}.db`;
-    const dest = (await import("path")).join(backupDir, name);
+    const dest = pathMod.join(backupDir, name);
     if (fs.existsSync(dest)) return "Today's backup already exists";
 
     fs.copyFileSync(dbPath, dest);
 
-    // Clean old backups (keep last 7)
     const backups = fs.readdirSync(backupDir).filter((f: string) => f.startsWith("auto-")).sort().reverse();
-    for (const old of backups.slice(7)) {
-      fs.unlinkSync((await import("path")).join(backupDir, old));
-    }
+    for (const old of backups.slice(7)) fs.unlinkSync(pathMod.join(backupDir, old));
 
     return `Backup created: ${name}`;
   },
