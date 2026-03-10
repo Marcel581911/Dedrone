@@ -179,13 +179,16 @@ async function main() {
       description: "Track expenses, budgets, accounts, and generate financial reports.",
       icon: "$",
       manifest: {
+        settings: [
+          { key: "bank_api_key", label: "Bank API Key", type: "password", required: false, description: "Connect to your bank for automatic transaction import" },
+          { key: "currency", label: "Currency", type: "text", required: true, default: "USD", description: "Your primary currency (USD, EUR, GBP...)" },
+        ],
         agents: [{ name: "Finance Agent", role: "Financial analyst", mission: "Track and analyze personal finances", systemPrompt: "You are a finance assistant. Help the user track expenses, manage budgets, and provide financial insights.", tags: ["finance"] }],
         skills: [
           { name: "log_expense", description: "Log an expense with amount, category, and date", inputSchema: { type: "object", properties: { amount: { type: "number" }, category: { type: "string" }, description: { type: "string" } }, required: ["amount", "category"] } },
           { name: "budget_report", description: "Generate a budget summary report", inputSchema: { type: "object", properties: { period: { type: "string" } } } },
         ],
         scheduledTasks: [{ name: "weekly_finance_report", description: "Generate weekly spending summary", intervalMin: 10080 }],
-        pages: ["dashboard", "transactions", "budgets"],
       },
     },
     {
@@ -194,12 +197,15 @@ async function main() {
       description: "Plan trips, manage itineraries, track bookings, and organize travel documents.",
       icon: "✈",
       manifest: {
+        settings: [
+          { key: "google_maps_key", label: "Google Maps API Key", type: "password", required: false, description: "For location search and maps" },
+          { key: "home_airport", label: "Home Airport Code", type: "text", required: false, default: "", description: "e.g. JFK, LAX, CDG" },
+        ],
         agents: [{ name: "Travel Agent", role: "Travel planner", mission: "Plan and organize trips", systemPrompt: "You are a travel planning assistant. Help plan trips, organize itineraries, and manage bookings.", tags: ["travel"] }],
         skills: [
           { name: "create_itinerary", description: "Create a travel itinerary", inputSchema: { type: "object", properties: { destination: { type: "string" }, startDate: { type: "string" }, endDate: { type: "string" } }, required: ["destination"] } },
           { name: "find_flights", description: "Search for flight options", inputSchema: { type: "object", properties: { from: { type: "string" }, to: { type: "string" }, date: { type: "string" } }, required: ["from", "to"] } },
         ],
-        pages: ["trips", "itineraries", "bookings"],
       },
     },
     {
@@ -208,12 +214,18 @@ async function main() {
       description: "Track assignments, grades, schedules, and school activities for kids.",
       icon: "📚",
       manifest: {
+        settings: [
+          { key: "school_name", label: "School Name", type: "text", required: true, description: "Name of the school" },
+          { key: "student_name", label: "Student Name", type: "text", required: true, description: "Student's name" },
+          { key: "school_portal_url", label: "School Portal URL", type: "text", required: false, description: "URL for the school's online portal" },
+          { key: "school_portal_user", label: "Portal Username", type: "text", required: false },
+          { key: "school_portal_pass", label: "Portal Password", type: "password", required: false },
+        ],
         agents: [{ name: "School Agent", role: "Education assistant", mission: "Help manage school tasks and schedules", systemPrompt: "You are a school management assistant. Help track homework, assignments, grades, and school schedules.", tags: ["school", "education"] }],
         skills: [
           { name: "add_assignment", description: "Add a homework assignment", inputSchema: { type: "object", properties: { subject: { type: "string" }, title: { type: "string" }, dueDate: { type: "string" } }, required: ["subject", "title"] } },
           { name: "grade_report", description: "Generate a grade summary", inputSchema: { type: "object", properties: { student: { type: "string" } } } },
         ],
-        pages: ["assignments", "grades", "schedule"],
       },
     },
     {
@@ -222,11 +234,15 @@ async function main() {
       description: "Track health metrics, medications, appointments, and wellness goals.",
       icon: "❤",
       manifest: {
+        settings: [
+          { key: "user_dob", label: "Date of Birth", type: "text", required: false, description: "For age-related health tracking" },
+          { key: "fitbit_token", label: "Fitbit API Token", type: "password", required: false, description: "Connect Fitbit for automatic health data sync" },
+          { key: "pharmacy_name", label: "Pharmacy Name", type: "text", required: false },
+        ],
         agents: [{ name: "Health Agent", role: "Health assistant", mission: "Help track health and wellness data", systemPrompt: "You are a health and wellness assistant. Help track medications, appointments, and health metrics. Never provide medical diagnoses.", tags: ["health"] }],
         skills: [
           { name: "log_health_metric", description: "Log a health measurement", inputSchema: { type: "object", properties: { metric: { type: "string" }, value: { type: "number" }, unit: { type: "string" } }, required: ["metric", "value"] } },
         ],
-        pages: ["dashboard", "metrics", "appointments"],
       },
     },
   ];

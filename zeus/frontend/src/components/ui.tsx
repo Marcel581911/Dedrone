@@ -1,9 +1,9 @@
 import { ReactNode } from "react";
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function Card({ children, className = "", style }: { children: ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
     <div className={`rounded-lg border p-5 ${className}`}
-      style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+      style={{ background: "var(--bg-card)", borderColor: "var(--border)", ...style }}>
       {children}
     </div>
   );

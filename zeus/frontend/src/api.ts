@@ -90,4 +90,7 @@ export const api = {
   getModules: () => request<any[]>("/modules"),
   installModule: (slug: string) => request<any>(`/modules/${slug}/install`, { method: "POST" }),
   uninstallModule: (slug: string) => request<any>(`/modules/${slug}/uninstall`, { method: "POST" }),
+  updateModuleConfig: (slug: string, config: Record<string, string>) =>
+    request<any>(`/modules/${slug}/config`, { method: "PUT", body: JSON.stringify(config) }),
+  activateModule: (slug: string) => request<any>(`/modules/${slug}/activate`, { method: "POST" }),
 };
