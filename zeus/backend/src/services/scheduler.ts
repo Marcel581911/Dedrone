@@ -4,6 +4,10 @@ import { log } from "../logger.js";
 const SCHEDULER_INTERVAL = 30_000;
 
 const BUILTIN_TASKS: Record<string, () => Promise<string>> = {
+  proactive_brief: async () => {
+    const { runProactiveBriefs } = await import("./proactive-brief.js");
+    return runProactiveBriefs();
+  },
   health_check: async () => {
     const agents = await prisma.agent.count({ where: { enabled: true } });
     const queuedTickets = await prisma.ticket.count({ where: { status: "queued" } });

@@ -166,6 +166,7 @@ async function main() {
     { name: "price_check",        description: "Check price alerts and notify users",               intervalMin: 60,   agentId: systemAgent.id, taskType: "system" },
     { name: "shopping_rules",     description: "Auto-add recurring shopping items from rules",      intervalMin: 60,   agentId: systemAgent.id, taskType: "system" },
     { name: "flight_check",       description: "Check upcoming flight statuses and alert on delays", intervalMin: 60,  agentId: systemAgent.id, taskType: "system" },
+    { name: "proactive_brief",    description: "AI-powered personalised brief at 7am, 12pm, 6pm — adapts to user habits", intervalMin: 5, agentId: systemAgent.id, taskType: "system" },
   ];
 
   for (const t of tasks) {
