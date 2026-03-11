@@ -11,7 +11,17 @@ export async function dashboardRoutes(app: FastifyInstance) {
     const weekEnd = new Date(todayStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
 
-    const [agents, skills, todayEvents, weekEvents, pendingTasks, overdueTasks, pendingReminders, recentDone] = await Promise.all([
+    const in7days = new Date(todayStart);
+    in7days.setDate(in7days.getDate() + 7);
+
+    const [
+      agents, skills,
+      todayEvents, weekEvents,
+      pendingTasks, overdueTasks,
+      pendingReminders, recentDone,
+      upcomingTrip, nextFlight,
+      pendingShoppingCount, unreadEmailCount,
+    ] = await Promise.all([
       prisma.agent.count({ where: { enabled: true, OR: [{ userId }, { userId: null }] } }),
       prisma.skill.count(),
       prisma.calendarEvent.findMany({
@@ -40,8 +50,37 @@ export async function dashboardRoutes(app: FastifyInstance) {
         where: { userId, status: "done", updatedAt: { gte: todayStart } },
         orderBy: { updatedAt: "desc" }, take: 5,
       }),
+      // Next upcoming trip
+      prisma.trip.findFirst({
+        where: { userId, startDate: { gte: todayStart }, status: { not: "past" } },
+        orderBy: { startDate: "asc" },
+        select: { id: true, name: true, destination: true, startDate: true, coverEmoji: true },
+      }),
+      // Next tracked flight within 7 days
+      prisma.tripEvent.findFirst({
+        where: {
+          trip: { userId },
+          type: "flight",
+          startTime: { gte: now, lt: in7days },
+        },
+        orderBy: { startTime: "asc" },
+        select: { id: true, title: true, flightNumber: true, airline: true, fromAirport: true, toAirport: true, startTime: true, flightStatus: true, delayMinutes: true },
+      }),
+      // Pending shopping items count
+      prisma.shoppingItem.count({ where: { userId, status: "pending" } }),
+      // Unread emails count
+      prisma.emailMessage.count({ where: { direction: "inbound", isRead: false } }),
     ]);
 
-    return { agents, skills, runtimeStatus: "running", todayEvents, weekEvents, pendingTasks, overdueTasks, pendingReminders, recentDone };
+    return {
+      agents, skills, runtimeStatus: "running",
+      todayEvents, weekEvents,
+      pendingTasks, overdueTasks,
+      pendingReminders, recentDone,
+      upcomingTrip,
+      nextFlight,
+      pendingShoppingCount,
+      unreadEmailCount,
+    };
   });
 }
