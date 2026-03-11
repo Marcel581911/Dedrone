@@ -15,15 +15,16 @@ function readVersionFile(filePath: string): any {
 }
 
 export async function updateRoutes(app: FastifyInstance) {
-  // Get current version + changelog
+  // Get current version — all authenticated users can see what version is running
   app.get("/api/version", async () => {
     const versionFile = path.join(ZEUS_ROOT, "version.json");
     const current = readVersionFile(versionFile);
     return { current: current.version, releasedAt: current.releasedAt, changelog: current.changelog };
   });
 
-  // Check for updates (git fetch + compare)
-  app.post("/api/version/check", async () => {
+  // Check for updates — admin only
+  app.post("/api/version/check", async (req, reply) => {
+    if ((req as any).userRole !== "admin") return reply.status(403).send({ error: "Admin only" });
     try {
       execSync("git fetch origin", { cwd: ZEUS_ROOT, timeout: 15000, stdio: "pipe" });
 
@@ -59,8 +60,9 @@ export async function updateRoutes(app: FastifyInstance) {
     }
   });
 
-  // Perform update: git pull + pnpm build + restart
-  app.post("/api/version/update", async () => {
+  // Perform update: git pull + pnpm build + restart — admin only
+  app.post("/api/version/update", async (req, reply) => {
+    if ((req as any).userRole !== "admin") return reply.status(403).send({ error: "Admin only" });
     try {
       await log("info", "update", "Starting self-update...");
 

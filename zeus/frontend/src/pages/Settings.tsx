@@ -272,12 +272,20 @@ function PlatformTab({ isAdmin }: { isAdmin: boolean }) {
       )}
 
       {/* Admin shortcut */}
-      {isAdmin && (
+      {isAdmin ? (
         <div className="rounded-lg p-3 flex items-center gap-3" style={{ background: "var(--accent-bg)", border: "1px solid var(--accent)" }}>
           <span className="text-base">🔑</span>
           <div className="flex-1">
             <p className="text-xs font-medium" style={{ color: "var(--accent)" }}>You are the admin</p>
-            <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>API keys and integrations are managed in the Connections tab.</p>
+            <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>API keys, integrations, and system updates are managed in the Connections and Update tabs.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg p-3 flex items-center gap-3" style={{ background: "var(--bg-input)", border: "1px solid var(--border)" }}>
+          <span className="text-base">🔄</span>
+          <div className="flex-1">
+            <p className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>System updates</p>
+            <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>Updates are tested and applied by your admin. You'll get the latest version automatically once they roll it out.</p>
           </div>
         </div>
       )}
