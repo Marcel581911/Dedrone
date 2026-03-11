@@ -13,6 +13,8 @@ export default function ToDo() {
   const [statusFilter, setStatusFilter] = useState("active");
   const [catFilter, setCatFilter] = useState("All");
   const [form, setForm] = useState({ title: "", description: "", priority: "medium", category: "Personal", dueAt: "" });
+  const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const load = () => {
     api.getTickets({}).then((t) => {
@@ -30,16 +32,24 @@ export default function ToDo() {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
       setTasks(filtered);
-    });
+    }).catch(() => {});
   };
   useEffect(() => { load(); }, [statusFilter, catFilter]);
 
   const create = async () => {
-    if (!form.title.trim()) return;
-    await api.createTicket({ ...form, dueAt: form.dueAt || null });
-    setForm({ title: "", description: "", priority: "medium", category: form.category, dueAt: "" });
-    setShowAdd(false);
-    load();
+    if (!form.title.trim()) { setFormError("Title is required."); return; }
+    setSaving(true);
+    setFormError("");
+    try {
+      await api.createTicket({ ...form, dueAt: form.dueAt ? new Date(form.dueAt).toISOString() : null });
+      setForm({ title: "", description: "", priority: "medium", category: form.category, dueAt: "" });
+      setShowAdd(false);
+      load();
+    } catch (e: any) {
+      setFormError(e.message || "Failed to create task.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const markDone = async (id: string) => { await api.updateTicket(id, { status: "done" }); load(); };
@@ -97,10 +107,12 @@ export default function ToDo() {
       {showAdd && (
         <Card className="mb-4">
           <div className="space-y-3">
-            <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="What needs to be done?" autoFocus
-              onKeyDown={(e) => e.key === "Enter" && !form.description && create()} />
-            <TextArea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Details (optional)" style={{ minHeight: 50 }} />
-            <div className="grid grid-cols-4 gap-2">
+            <Input value={form.title} onChange={(e) => { setForm({ ...form, title: e.target.value }); setFormError(""); }}
+              placeholder="What needs to be done?" autoFocus
+              onKeyDown={(e) => e.key === "Enter" && create()} />
+            <TextArea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Details (optional)" style={{ minHeight: 50 }} />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
                 <Label>Category</Label>
                 <Select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full">
@@ -118,10 +130,11 @@ export default function ToDo() {
                 <Label>Due date</Label>
                 <Input type="datetime-local" value={form.dueAt} onChange={(e) => setForm({ ...form, dueAt: e.target.value })} />
               </div>
-              <div className="flex items-end gap-2">
-                <Btn variant="primary" onClick={create}>Add</Btn>
-                <Btn onClick={() => setShowAdd(false)}>Cancel</Btn>
-              </div>
+            </div>
+            {formError && <p className="text-xs" style={{ color: "#f87171" }}>{formError}</p>}
+            <div className="flex gap-2">
+              <Btn variant="primary" onClick={create} disabled={saving}>{saving ? "..." : "Add task"}</Btn>
+              <Btn onClick={() => { setShowAdd(false); setFormError(""); }}>Cancel</Btn>
             </div>
           </div>
         </Card>
