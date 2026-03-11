@@ -1,0 +1,6 @@
+declare module "fastify" {
+  interface FastifyRequest {
+    userId: string;
+    userRole: string;
+  }
+}
