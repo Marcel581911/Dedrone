@@ -52,6 +52,18 @@ async function main() {
   await upsertSkill("list_agents", "List all available agents.", {});
 
   await upsertSkill(
+    "delegate_to_agent",
+    "Run a specialist agent synchronously and get its response back immediately. Use this to delegate a specific task to a specialist (e.g. Finance Agent, Travel Agent) and receive their output in the same conversation turn.",
+    {
+      agentId:   { type: "string", description: "Agent ID (use list_agents to find it)" },
+      agentName: { type: "string", description: "Agent name if ID is not known (e.g. 'Finance Agent', 'Travel Agent')" },
+      task:      { type: "string", description: "The specific task or question for the specialist" },
+      context:   { type: "string", description: "Optional extra context (data, constraints, preferences)" },
+    },
+    ["task"]
+  );
+
+  await upsertSkill(
     "plan_and_execute",
     "Break a complex multi-step goal into a plan and execute each step autonomously, in parallel where possible. Use for goals that require multiple actions, research + execution, or sequential dependent tasks (e.g. 'research hotels in Paris, compare and recommend the best, add a reminder to book').",
     {
@@ -177,6 +189,7 @@ async function main() {
     { name: "stale_ticket_check", description: "Detect stuck tickets and mark as failed",           intervalMin: 120,  agentId: systemAgent.id, taskType: "system" },
     { name: "email_sync",         description: "Sync new emails from IMAP inbox",                   intervalMin: 15,   agentId: systemAgent.id, taskType: "email"  },
     { name: "memory_prune",       description: "Remove old low-relevance memories",                 intervalMin: 1440, agentId: systemAgent.id, taskType: "system" },
+    { name: "memory_sweep",       description: "Harvest recent activity, extract insights, deduplicate and decay stale memories", intervalMin: 720, agentId: systemAgent.id, taskType: "system" },
     { name: "prompt_optimize",    description: "Analyze token usage",                               intervalMin: 1440, agentId: systemAgent.id, taskType: "system" },
     { name: "reminder_check",     description: "Check for due reminders and notify users",          intervalMin: 1,    agentId: systemAgent.id, taskType: "system" },
     { name: "daily_digest",       description: "Send daily summary to each user",                   intervalMin: 1440, agentId: systemAgent.id, taskType: "system" },

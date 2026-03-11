@@ -44,6 +44,7 @@ import { startWorker } from "./services/worker.js";
 import { startAllUserBots } from "./services/telegram.js";
 import { startScheduler } from "./services/scheduler.js";
 import { isSetup, validateSession } from "./services/auth.js";
+import { patchOrchestratorPrompts } from "./services/user-provisioning.js";
 import { prisma } from "./db.js";
 
 const app = Fastify({ logger: false });
@@ -156,6 +157,9 @@ try {
 
   startWorker();
   startScheduler();
+
+  // Patch existing orchestrator prompts with latest delegation instructions
+  patchOrchestratorPrompts().catch((e) => console.warn("Prompt patch skipped:", e.message));
 
   await startAllUserBots();
 } catch (err) {

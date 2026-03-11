@@ -663,6 +663,54 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
     return { success: true, data: { slug }, message: `${mod.name || slug} specialist is now active and ready.` };
   },
 
+  // ── Synchronous specialist delegation — Marcel gets the result back immediately ──
+  delegate_to_agent: async (args, userId) => {
+    const agentId   = String(args.agentId   || "").trim();
+    const agentName = String(args.agentName || "").trim();
+    const task      = String(args.task      || "").trim();
+    const context   = String(args.context   || "").trim();
+
+    if (!task) return { success: false, data: {}, message: "A task description is required." };
+
+    // Resolve agent by id or name
+    const agent = agentId
+      ? await prisma.agent.findFirst({ where: { id: agentId, enabled: true } })
+      : await prisma.agent.findFirst({ where: { name: { contains: agentName }, enabled: true, OR: [{ userId }, { userId: null }] } });
+
+    if (!agent) {
+      return {
+        success: false,
+        data: {},
+        message: agentId
+          ? `No agent found with id "${agentId}". Call list_agents to see available agents.`
+          : `No agent found named "${agentName}". Call list_agents to see available agents.`,
+      };
+    }
+
+    const prompt = context
+      ? `${task}\n\nContext:\n${context}`
+      : task;
+
+    const { chatWithAgent } = await import("./chat.js");
+    const conversation = await prisma.conversation.create({
+      data: { agentId: agent.id, title: `Delegation: ${task.slice(0, 80)}` },
+    });
+
+    const result = await chatWithAgent(agent.id, conversation.id, prompt, userId);
+    const output = result.message.content;
+
+    // Store in agent memory for continuity
+    const { storeMemory } = await import("./memory.js");
+    await storeMemory(agent.id, `Completed delegation: "${task.slice(0, 100)}" — ${output.slice(0, 1000)}`, "delegation_result", {});
+
+    await log("info", "skill:delegate_to_agent", `Agent "${agent.name}" completed delegation: "${task.slice(0, 60)}"`, { agentId: agent.id });
+    return {
+      success: true,
+      data: { agentId: agent.id, agentName: agent.name, output },
+      message: `**${agent.name} says:**\n\n${output}`,
+    };
+  },
+
   // ── Multi-step plan-and-execute ────────────────────────────────────────────
   plan_and_execute: async (args, userId) => {
     const goal    = String(args.goal    || "").trim();

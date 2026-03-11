@@ -1,5 +1,38 @@
 import { prisma } from "../db.js";
 
+// Patch existing orchestrators to pick up latest delegation + agents section without full re-provision
+export async function patchOrchestratorPrompts() {
+  const orchestrators = await prisma.agent.findMany({
+    where: { id: { startsWith: "orch-" } },
+  });
+
+  // Ensure delegate_to_agent skill exists
+  const delegateSkill = await prisma.skill.findUnique({ where: { name: "delegate_to_agent" } });
+
+  for (const orch of orchestrators) {
+    // Patch prompt if it doesn't have the new delegation section
+    const hasDelegate = orch.systemPrompt.includes("delegate_to_agent");
+    if (!hasDelegate) {
+      const cutMarker = "### 🤖 Agents & System";
+      const cutIndex = ORCHESTRATOR_PROMPT.indexOf(cutMarker);
+      const existingCut = orch.systemPrompt.indexOf(cutMarker);
+      if (existingCut !== -1 && cutIndex !== -1) {
+        const updated = orch.systemPrompt.slice(0, existingCut) + ORCHESTRATOR_PROMPT.slice(cutIndex);
+        await prisma.agent.update({ where: { id: orch.id }, data: { systemPrompt: updated } });
+      }
+    }
+
+    // Assign delegate_to_agent skill if missing
+    if (delegateSkill) {
+      await prisma.agentSkill.upsert({
+        where: { agentId_skillId: { agentId: orch.id, skillId: delegateSkill.id } },
+        update: {},
+        create: { agentId: orch.id, skillId: delegateSkill.id },
+      });
+    }
+  }
+}
+
 export async function provisionUserAgents(
   userId: string,
   assistantName: string,
@@ -58,6 +91,8 @@ export async function provisionUserAgents(
   const orchSkills = [
     // Multi-step planning
     "plan_and_execute",
+    // Specialist delegation (synchronous — result comes back immediately)
+    "delegate_to_agent",
     // Specialist agents
     "activate_specialist",
     // Core personal
@@ -155,9 +190,10 @@ const ORCHESTRATOR_PROMPT = `You are Gulli — a personal life OS assistant. You
 - get_poi_memory(country?, city?, category?) — recall visited places
 
 ### 🤖 Agents & System
-- list_agents, create_agent, manage_agent
-- activate_specialist(slug) — enable a specialist agent: travel | finance | school | family | health
-  Use when user asks for help with a specific domain and no specialist is active yet.
+- list_agents — see all available agents and their IDs
+- delegate_to_agent(task, agentName?, agentId?, context?) — run a specialist and get their answer back immediately
+- activate_specialist(slug) — enable a specialist: travel | finance | school | family | health
+- create_agent, manage_agent
 - create_automation(what, systems?, frequency?, dataSource?, delivery?)
 - send_alert(message) — push to user via Telegram/SMS
 
@@ -198,9 +234,30 @@ Use this when a request requires multiple dependent steps or a mix of research +
 - If spending this month is higher than usual → mention it when asked about finances
 - If shopping list has > 10 items → suggest grouping by shop when user asks about it
 
-## Delegation
-For deep research, analysis of documents, or long summarization: create_ticket and assign to the Research Agent.
-For complex multi-step goals: plan_and_execute — it handles the full plan autonomously.
+## Delegation — you are the user's single interface
+You are the ONLY agent the user talks to. Specialists run silently in the background and you present their output as part of your own reply.
+
+### delegate_to_agent(task, agentName?, agentId?, context?)
+Use this to hand a specific task to a specialist and immediately get their answer back.
+Always call **list_agents** first if you don't know an agent's ID.
+
+**When to delegate:**
+| Situation | Who to call |
+|-----------|-------------|
+| Deep research, document analysis, long summarization | Research Agent |
+| Finance deep-dive (portfolio, tax, debt strategy) | Finance Agent *(if installed)* |
+| Trip planning, itinerary, flight monitoring | Travel Agent *(if installed)* |
+| Family scheduling, household, shared tasks | Family Coordinator *(if installed)* |
+| Assignments, exams, school calendar | School Agent *(if installed)* |
+| Health appointments, medications, wellness | Health Agent *(if installed)* |
+
+**Pattern:**
+1. Call list_agents → get the specialist's agent ID
+2. Call delegate_to_agent(task, agentId=...) → get result back immediately
+3. Synthesize and present the result to the user in your own voice
+
+If a specialist isn't installed yet, call activate_specialist(slug) first, then delegate.
+For complex multi-step goals: plan_and_execute — it chains specialists automatically.
 
 Always confirm every action in one line: "Done — reminder set for Friday at 9am."`;
 

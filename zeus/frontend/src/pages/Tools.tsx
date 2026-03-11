@@ -112,10 +112,13 @@ export default function Tools() {
               </Card>
             )}
 
-            {/* Installed add-ons */}
+            {/* Installed specialist agents */}
             {installed.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-xs font-medium mb-3" style={{ color: "var(--text-muted)" }}>Installed add-ons ({installed.length})</h3>
+                <h3 className="text-xs font-medium mb-1" style={{ color: "var(--text-muted)" }}>Active specialists ({installed.length})</h3>
+                <p className="text-[11px] mb-3" style={{ color: "var(--text-muted)" }}>
+                  Marcel automatically delegates to these agents — just chat with Marcel as usual.
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {installed.map((m) => (
                     <Card key={m.id}>
@@ -129,7 +132,7 @@ export default function Tools() {
                           <p className="text-xs" style={{ color: "var(--text-muted)" }}>{m.description}</p>
                           <div className="flex items-center gap-2 mt-2">
                             {m.manifest?.settings?.length > 0 && <button onClick={() => openConfig(m.slug)} className="text-[10px] underline" style={{ color: "var(--accent)" }}>Configure</button>}
-                            <button onClick={() => uninstall(m.slug)} disabled={acting === m.slug} className="text-[10px] ml-auto" style={{ color: "#f87171" }}>{acting === m.slug ? "..." : "Uninstall"}</button>
+                            <button onClick={() => uninstall(m.slug)} disabled={acting === m.slug} className="text-[10px] ml-auto" style={{ color: "#f87171" }}>{acting === m.slug ? "..." : "Remove"}</button>
                           </div>
                         </div>
                       </div>
@@ -139,9 +142,12 @@ export default function Tools() {
               </div>
             )}
 
-            {/* Available add-ons */}
+            {/* Available specialist agents */}
             <div>
-              <h3 className="text-xs font-medium mb-3" style={{ color: "var(--text-muted)" }}>Available add-ons ({available.length})</h3>
+              <h3 className="text-xs font-medium mb-1" style={{ color: "var(--text-muted)" }}>Add specialist agents ({available.length})</h3>
+              <p className="text-[11px] mb-3" style={{ color: "var(--text-muted)" }}>
+                Specialists extend Marcel's capabilities. Once installed, Marcel routes relevant tasks to them automatically.
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {available.map((m) => {
                   const reqCount = m.manifest?.settings?.filter((s: any) => s.required).length || 0;
@@ -154,7 +160,7 @@ export default function Tools() {
                           <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{m.description}</p>
                           {reqCount > 0 && <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>{reqCount} required setting{reqCount > 1 ? "s" : ""}</p>}
                           <div className="mt-2">
-                            <Btn variant="primary" onClick={() => install(m.slug)} disabled={acting === m.slug} style={{ padding: "4px 12px", fontSize: 11 }}>{acting === m.slug ? "Installing..." : "Install"}</Btn>
+                            <Btn variant="primary" onClick={() => install(m.slug)} disabled={acting === m.slug} style={{ padding: "4px 12px", fontSize: 11 }}>{acting === m.slug ? "Activating..." : "Activate"}</Btn>
                           </div>
                         </div>
                       </div>

@@ -6,13 +6,20 @@ import { searchMemory, storeMemory } from "./memory.js";
 import { optimizeForChat } from "./prompt-optimizer.js";
 import { trackUsage } from "../routes/usage.js";
 
-const MAX_TOOL_ROUNDS = 5;
+const MAX_ROUNDS = 20;
+
+export type StepEvent =
+  | { type: "tool_call"; skill: string; round: number }
+  | { type: "tool_result"; skill: string; success: boolean; summary: string }
+  | { type: "retry"; message: string }
+  | { type: "done"; content: string; messageId: string };
 
 export async function chatWithAgent(
   agentId: string,
   conversationId: string,
   userMessage: string,
-  userId: string
+  userId: string,
+  onStep?: (event: StepEvent) => void
 ) {
   const agent = await prisma.agent.findUniqueOrThrow({
     where: { id: agentId },
@@ -64,8 +71,9 @@ export async function chatWithAgent(
     let finalContent = "";
     const toolLog: string[] = [];
     let round = 0;
+    let consecutiveFailures = 0;
 
-    while (round < MAX_TOOL_ROUNDS) {
+    while (round < MAX_ROUNDS) {
       round++;
       const completion = await client.chat.completions.create({
         model: agent.model,
@@ -89,22 +97,43 @@ export async function chatWithAgent(
 
       apiMessages.push(msg as any);
 
+      let roundHadSuccess = false;
+
       for (const tc of msg.tool_calls) {
         const skillName = tc.function.name;
         const skill = enabledSkills.find((s) => s.name === skillName);
         let toolResultContent: string;
 
+        onStep?.({ type: "tool_call", skill: skillName, round });
+
         if (!skill) {
           await createSkillGap(skillName, `Tool call from agent ${agent.name}: ${userMessage}`, agentId);
-          toolResultContent = JSON.stringify({ success: false, message: `Skill "${skillName}" is not available. Gap recorded.` });
+          const result = { success: false, message: `Skill "${skillName}" is not available. Gap recorded.` };
+          toolResultContent = JSON.stringify(result);
           toolLog.push(`[gap] ${skillName}`);
+          onStep?.({ type: "tool_result", skill: skillName, success: false, summary: result.message.slice(0, 120) });
         } else {
           const result = await executeSkill(skillName, tc.function.arguments, userId);
           toolResultContent = JSON.stringify(result);
           toolLog.push(`[${result.success ? "ok" : "fail"}] ${skillName} — ${result.message}`);
+          onStep?.({ type: "tool_result", skill: skillName, success: result.success, summary: result.message.slice(0, 120) });
+          if (result.success) roundHadSuccess = true;
         }
 
         apiMessages.push({ role: "tool", tool_call_id: tc.id, content: toolResultContent } as any);
+      }
+
+      if (roundHadSuccess) {
+        consecutiveFailures = 0;
+      } else {
+        consecutiveFailures++;
+      }
+
+      if (consecutiveFailures >= 3) {
+        const nudge = "Several attempts failed. Please give your best answer with what you have so far, or explain what's blocking you.";
+        apiMessages.push({ role: "user", content: nudge });
+        onStep?.({ type: "retry", message: "Retrying with different approach..." });
+        consecutiveFailures = 0;
       }
 
       if (msg.content) finalContent = msg.content;
@@ -117,6 +146,8 @@ export async function chatWithAgent(
     }
 
     const assistantMsg = await prisma.message.create({ data: { conversationId, role: "assistant", content: finalContent } });
+
+    onStep?.({ type: "done", content: finalContent, messageId: assistantMsg.id });
 
     const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
     if (conv && conv.title === "New Conversation") {
@@ -189,7 +220,7 @@ async function buildSystemPrompt(
         ? `\n  - ${a.name} (ID: ${a.id}) — YOU`
         : `\n  - ${a.name} (ID: ${a.id}) — ${a.role}: ${a.mission}`;
     }
-    prompt += `\n\nTo delegate: create_ticket then assign_ticket with ticketId and agent ID.`;
+    prompt += `\n\nTo delegate: use delegate_to_agent(task, agentId) to get results back immediately.`;
   }
 
   if (skills.length > 0) {

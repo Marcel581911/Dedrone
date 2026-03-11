@@ -165,6 +165,11 @@ const BUILTIN_TASKS: Record<string, () => Promise<string>> = {
     return count > 0 ? `Pruned ${count} old memories` : "No memories to prune";
   },
 
+  memory_sweep: async () => {
+    const { runMemorySweep } = await import("./memory-sweep.js");
+    return runMemorySweep();
+  },
+
   price_check: async () => {
     const alerts = await prisma.priceAlert.findMany({ where: { active: true, triggered: false } });
     if (alerts.length === 0) return "No active price alerts";

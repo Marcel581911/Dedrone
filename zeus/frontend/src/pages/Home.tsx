@@ -69,15 +69,60 @@ export default function Home({ profile }: Props) {
     const text = msg ?? input;
     if (!text.trim() || !activeConv || !agentId || sending) return;
     setInput("");
-    setMessages((p) => [...p, { id: "t", role: "user", content: text, createdAt: new Date().toISOString() }]);
     setSending(true);
+    const thinkingId = `thinking-${Date.now()}`;
+    setMessages((p) => [...p,
+      { id: "tmp-user", role: "user", content: text, createdAt: new Date().toISOString() },
+      { id: thinkingId, role: "assistant", isStreaming: true, steps: [], content: "", createdAt: new Date().toISOString() },
+    ]);
+
     try {
-      await api.chat(agentId, activeConv.id, text);
-      setMessages(await api.getMessages(activeConv.id));
-      setConvs(await api.getConversations(agentId));
-      loadDash();
-    } catch (e: any) { setMessages((p) => [...p, { id: "e", role: "assistant", content: `Error: ${e.message}` }]); }
-    finally { setSending(false); }
+      const res = await fetch(`/api/agents/${agentId}/chat/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: activeConv.id, message: text }),
+        credentials: "include",
+      });
+      if (!res.ok || !res.body) throw new Error("Stream failed");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const ev = JSON.parse(line.slice(6));
+            if (ev.type === "tool_call" || ev.type === "tool_result" || ev.type === "retry") {
+              setMessages((p) => p.map((m) => m.id === thinkingId
+                ? { ...m, steps: [...(m.steps ?? []), ev] }
+                : m));
+            } else if (ev.type === "done") {
+              setMessages((p) => p.map((m) => m.id === thinkingId
+                ? { ...m, isStreaming: false, content: ev.content, id: ev.messageId }
+                : m));
+              setConvs(await api.getConversations(agentId));
+              loadDash();
+            } else if (ev.type === "error") {
+              setMessages((p) => p.map((m) => m.id === thinkingId
+                ? { ...m, isStreaming: false, content: `Error: ${ev.message}`, id: `err-${Date.now()}` }
+                : m));
+            }
+          } catch {}
+        }
+      }
+    } catch (e: any) {
+      setMessages((p) => p.filter((m) => m.id !== thinkingId));
+      setMessages((p) => [...p, { id: "e", role: "assistant", content: `Error: ${e.message}` }]);
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -392,7 +437,28 @@ export default function Home({ profile }: Props) {
               <div key={m.id || i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className="max-w-[80%]">
                   {m.role === "assistant" && <p className="text-[10px] mb-0.5 px-1" style={{ color: "var(--text-muted)" }}>{agentName}</p>}
-                  {m.isImport ? (
+                  {m.isStreaming ? (
+                    <div className="rounded-xl px-4 py-3 text-sm border" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+                      {(m.steps ?? []).length === 0 ? (
+                        <span className="animate-pulse text-xs" style={{ color: "var(--text-muted)" }}>{agentName} is thinking…</span>
+                      ) : (
+                        <div className="space-y-1">
+                          {(m.steps as any[]).map((s: any, si: number) => (
+                            <div key={si} className="flex items-center gap-2 text-[11px]" style={{ color: s.type === "tool_result" && !s.success ? "#f87171" : "var(--text-muted)" }}>
+                              {s.type === "tool_call" && <span className="shrink-0 w-3 h-3 rounded-full border-2 animate-spin" style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />}
+                              {s.type === "tool_result" && <span className="shrink-0" style={{ color: s.success ? "#4ade80" : "#f87171" }}>{s.success ? "✓" : "✗"}</span>}
+                              {s.type === "retry" && <span className="shrink-0" style={{ color: "#fbbf24" }}>↻</span>}
+                              <span className="truncate">{s.type === "tool_call" ? s.skill : s.type === "tool_result" ? s.summary : s.message}</span>
+                            </div>
+                          ))}
+                          <div className="flex items-center gap-2 text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
+                            <span className="shrink-0 w-3 h-3 rounded-full border-2 animate-spin" style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
+                            <span className="animate-pulse">Working…</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : m.isImport ? (
                     <div className="rounded-xl px-4 py-3 text-sm border" style={{ background: "var(--bg-card)", borderColor: "rgba(74,222,128,0.25)" }}>
                       <p className="text-xs font-medium mb-2.5" style={{ color: "#4ade80" }}>✦ Import complete</p>
                       <p className="text-[11px] mb-3" style={{ color: "var(--text-secondary)" }}>{m.content}</p>
@@ -423,10 +489,10 @@ export default function Home({ profile }: Props) {
                 </div>
               </div>
             ))}
-            {(sending || uploading) && (
+            {uploading && (
               <div className="flex justify-start">
                 <div className="rounded-xl px-4 py-2.5 text-sm border" style={{ background: "var(--bg-card)", borderColor: "var(--border)", color: "var(--text-muted)" }}>
-                  <span className="animate-pulse">{uploading ? "Processing file…" : `${agentName} is thinking…`}</span>
+                  <span className="animate-pulse">Processing file…</span>
                 </div>
               </div>
             )}
