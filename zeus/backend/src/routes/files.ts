@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../db.js";
 import { log } from "../logger.js";
 import { getDataDir } from "../services/paths.js";
+import { smartImport } from "../services/smart-import.js";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -83,6 +84,9 @@ export async function fileRoutes(app: FastifyInstance) {
 
     await log("info", "files", `File uploaded: ${data.filename} (${(buffer.length / 1024).toFixed(1)}KB)`, { storedName });
 
+    // Run smart import in background — populate modules from file content
+    const importResult = await smartImport(textContent, data.filename || storedName, (req as any).userId);
+
     return {
       id,
       filename: data.filename,
@@ -91,6 +95,7 @@ export async function fileRoutes(app: FastifyInstance) {
       textContent: textContent.slice(0, 50000),
       storageUsed: used + buffer.length,
       storageLimit: MAX_STORAGE,
+      importResult,
     };
   });
 

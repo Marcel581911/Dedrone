@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { api } from "../api";
 import { Btn } from "../components/ui";
 import { Link } from "react-router-dom";
@@ -86,24 +86,64 @@ export default function Home({ profile }: Props) {
     e.target.value = "";
     if (file.size > 5 * 1024 * 1024) { alert("Max 5MB."); return; }
     setUploading(true);
+
+    // Show user message immediately
+    setMessages((p) => [...p, { id: "f", role: "user", content: `📎 ${file.name}`, createdAt: new Date().toISOString() }]);
+
     try {
       const fd = new FormData(); fd.append("file", file);
       const res = await fetch("/api/files/upload", { method: "POST", body: fd, credentials: "include" });
       const result = await res.json();
       if (!res.ok) { setMessages((p) => [...p, { id: "ue", role: "assistant", content: result.error }]); return; }
-      setMessages((p) => [...p, { id: "f", role: "user", content: `📎 ${file.name}`, createdAt: new Date().toISOString() }]);
+
+      // Show import results card if anything was created
+      const imp = result.importResult;
+      if (imp && imp.artifacts && imp.artifacts.length > 0) {
+        setMessages((p) => [...p, {
+          id: `import-${Date.now()}`,
+          role: "assistant",
+          content: imp.summary,
+          importArtifacts: imp.artifacts,
+          isImport: true,
+          createdAt: new Date().toISOString(),
+        }]);
+        loadDash();
+      }
+
+      // Also send to agent for memory + summary
       setSending(true);
-      const prompt = `Uploaded file: **${file.name}**\n\nContent:\n---\n${result.textContent.slice(0, 8000)}\n---\n\nSummarize the key info and remember it.`;
+      const importNote = imp?.artifacts?.length > 0
+        ? `\n\nThe system already created: ${imp.summary}. Review with the user if needed.`
+        : "";
+      const prompt = `Uploaded file: **${file.name}**\n\nContent:\n---\n${result.textContent.slice(0, 6000)}\n---\n\nSummarize the key info, store it in memory.${importNote}`;
       await api.chat(agentId, activeConv.id, prompt);
       const msgs = await api.getMessages(activeConv.id);
       const last = msgs.filter((m: any) => m.role === "assistant").pop();
       if (last) await api.addMemory(agentId, { type: "file", content: `File: ${file.name}\n${last.content.slice(0, 2000)}` });
-      setMessages(msgs); setConvs(await api.getConversations(agentId));
+      setMessages(msgs);
+      setConvs(await api.getConversations(agentId));
     } catch (e: any) { setMessages((p) => [...p, { id: "ue2", role: "assistant", content: `Error: ${e.message}` }]); }
     finally { setUploading(false); setSending(false); }
   };
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const deleteArtifact = useCallback(async (msgId: string, artifact: any) => {
+    try {
+      if (artifact.type === "ticket")          await api.deleteTicket(artifact.id);
+      else if (artifact.type === "shopping_item") await api.deleteShoppingItem(artifact.id);
+      else if (artifact.type === "calendar_event") await api.deleteEvent(artifact.id);
+      else if (artifact.type === "reminder")   await api.deleteReminder(artifact.id);
+      else if (artifact.type === "note")       await api.deleteNote(artifact.id);
+      else if (artifact.type === "poi")        await api.deleteTravelPOI(artifact.id);
+      // Remove from the import card
+      setMessages((prev) => prev.map((m) => m.id !== msgId ? m : {
+        ...m,
+        importArtifacts: m.importArtifacts.filter((a: any) => a.id !== artifact.id),
+      }));
+      loadDash();
+    } catch {}
+  }, []);
 
   // Build contextual smart prompts based on current data
   const smartPrompts = (): string[] => {
@@ -352,10 +392,34 @@ export default function Home({ profile }: Props) {
               <div key={m.id || i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className="max-w-[80%]">
                   {m.role === "assistant" && <p className="text-[10px] mb-0.5 px-1" style={{ color: "var(--text-muted)" }}>{agentName}</p>}
-                  <div className="rounded-xl px-4 py-2.5 text-sm whitespace-pre-wrap leading-relaxed"
-                    style={{ background: m.role === "user" ? "var(--accent-bg)" : "var(--bg-card)", color: m.role === "user" ? "var(--accent)" : "var(--text-secondary)", border: `1px solid ${m.role === "user" ? "rgba(229,162,16,0.15)" : "var(--border)"}` }}>
-                    {m.content}
-                  </div>
+                  {m.isImport ? (
+                    <div className="rounded-xl px-4 py-3 text-sm border" style={{ background: "var(--bg-card)", borderColor: "rgba(74,222,128,0.25)" }}>
+                      <p className="text-xs font-medium mb-2.5" style={{ color: "#4ade80" }}>✦ Import complete</p>
+                      <p className="text-[11px] mb-3" style={{ color: "var(--text-secondary)" }}>{m.content}</p>
+                      {m.importArtifacts?.length > 0 ? (
+                        <div className="space-y-1">
+                          {(m.importArtifacts as any[]).map((a: any) => {
+                            const icon: Record<string, string> = { ticket: "☑", shopping_item: "🛒", calendar_event: "📅", reminder: "⏰", note: "📝", poi: "📍" };
+                            const link: Record<string, string> = { ticket: "/tools/todo", shopping_item: "/tools/shopping", calendar_event: "/tools/calendar", reminder: "/tools/calendar", note: "/tools/notes", poi: "/tools/travel" };
+                            return (
+                              <div key={a.id} className="flex items-center gap-2 rounded-lg px-2 py-1" style={{ background: "var(--bg-input)" }}>
+                                <span className="text-[11px] shrink-0" title={a.type}>{icon[a.type] || "·"}</span>
+                                <Link to={link[a.type] || "/"} className="flex-1 text-[11px] truncate hover:underline" style={{ color: "var(--text-primary)" }}>{a.title}</Link>
+                                <button onClick={() => deleteArtifact(m.id, a)} title="Remove" className="shrink-0 text-[10px] px-1.5 py-0.5 rounded hover:bg-red-500/20 transition-colors" style={{ color: "var(--text-muted)" }}>✕</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>All items removed.</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl px-4 py-2.5 text-sm whitespace-pre-wrap leading-relaxed"
+                      style={{ background: m.role === "user" ? "var(--accent-bg)" : "var(--bg-card)", color: m.role === "user" ? "var(--accent)" : "var(--text-secondary)", border: `1px solid ${m.role === "user" ? "rgba(229,162,16,0.15)" : "var(--border)"}` }}>
+                      {m.content}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
