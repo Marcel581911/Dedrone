@@ -4,6 +4,12 @@ import { log } from "../logger.js";
 const SCHEDULER_INTERVAL = 30_000;
 
 const BUILTIN_TASKS: Record<string, () => Promise<string>> = {
+  session_prune: async () => {
+    const { pruneExpiredSessions } = await import("./auth.js");
+    await pruneExpiredSessions();
+    return "Expired sessions pruned";
+  },
+
   proactive_brief: async () => {
     const { runProactiveBriefs } = await import("./proactive-brief.js");
     return runProactiveBriefs();

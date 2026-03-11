@@ -1,8 +1,7 @@
 import crypto from "crypto";
 import { prisma } from "../db.js";
 
-const activeSessions = new Map<string, { userId: string; createdAt: number }>();
-const SESSION_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 function hashPassword(password: string, salt: string): string {
   return crypto.pbkdf2Sync(password, salt, 100000, 64, "sha512").toString("hex");
@@ -57,24 +56,30 @@ export async function verifyUserPassword(userId: string, password: string): Prom
   return hashPassword(password, salt) === storedHash;
 }
 
-export function createSession(userId: string): string {
+export async function createSession(userId: string): Promise<string> {
   const token = crypto.randomBytes(32).toString("hex");
-  activeSessions.set(token, { userId, createdAt: Date.now() });
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+  await prisma.session.create({ data: { token, userId, expiresAt } });
   return token;
 }
 
-export function validateSession(token: string): { userId: string } | null {
-  const session = activeSessions.get(token);
+export async function validateSession(token: string): Promise<{ userId: string } | null> {
+  const session = await prisma.session.findUnique({ where: { token } });
   if (!session) return null;
-  if (Date.now() - session.createdAt > SESSION_TTL) {
-    activeSessions.delete(token);
+  if (session.expiresAt < new Date()) {
+    await prisma.session.delete({ where: { token } }).catch(() => {});
     return null;
   }
   return { userId: session.userId };
 }
 
-export function destroySession(token: string): void {
-  activeSessions.delete(token);
+export async function destroySession(token: string): Promise<void> {
+  await prisma.session.delete({ where: { token } }).catch(() => {});
+}
+
+/** Purge expired sessions — called periodically */
+export async function pruneExpiredSessions(): Promise<void> {
+  await prisma.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });
 }
 
 export async function createInviteCode(createdBy: string, role = "user"): Promise<string> {

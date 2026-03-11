@@ -82,7 +82,7 @@ app.addHook("onRequest", async (req, reply) => {
     return;
   }
 
-  const session = validateSession(token);
+  const session = await validateSession(token);
   if (!session) {
     reply.status(401).send({ error: "not_authenticated" });
     return;

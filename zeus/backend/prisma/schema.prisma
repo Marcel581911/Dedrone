@@ -43,6 +43,16 @@ model User {
   pois                 POI[]
   automations          Automation[]
   connectionRequests   ConnectionRequest[]
+  sessions             Session[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model InviteCode {

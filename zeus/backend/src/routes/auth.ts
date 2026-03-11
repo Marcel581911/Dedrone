@@ -8,6 +8,16 @@ import { provisionUserAgents } from "../services/user-provisioning.js";
 import { log } from "../logger.js";
 import { prisma } from "../db.js";
 
+const IS_PROD = process.env.NODE_ENV === "production";
+
+const COOKIE_OPTS = {
+  path: "/",
+  httpOnly: true,
+  secure: IS_PROD,       // only send over HTTPS in production
+  sameSite: "lax" as const,
+  maxAge: 604800,        // 7 days
+};
+
 export async function authRoutes(app: FastifyInstance) {
   // Public: what state is the app in?
   app.get("/api/auth/status", async (req) => {
@@ -17,7 +27,7 @@ export async function authRoutes(app: FastifyInstance) {
     const token = req.cookies.zeus_session;
     if (!token) return { setup: true, authenticated: false };
 
-    const session = validateSession(token);
+    const session = await validateSession(token);
     if (!session) return { setup: true, authenticated: false };
 
     const user = await prisma.user.findUnique({
@@ -44,8 +54,8 @@ export async function authRoutes(app: FastifyInstance) {
     const user = await createUser({ name, password, role: "admin", city, timezone, assistantName, assistantPersonality });
     await provisionUserAgents(user.id, user.assistantName, user.assistantPersonality, user.name);
 
-    const token = createSession(user.id);
-    reply.setCookie("zeus_session", token, { path: "/", httpOnly: true, sameSite: "lax", maxAge: 604800 });
+    const token = await createSession(user.id);
+    reply.setCookie("zeus_session", token, COOKIE_OPTS);
     await log("info", "auth", `Family setup complete — admin: ${user.name}`);
     return { success: true, user: { id: user.id, name: user.name, role: user.role } };
   });
@@ -61,8 +71,8 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(401).send({ error: "Invalid name or password." });
     }
 
-    const token = createSession(user.id);
-    reply.setCookie("zeus_session", token, { path: "/", httpOnly: true, sameSite: "lax", maxAge: 604800 });
+    const token = await createSession(user.id);
+    reply.setCookie("zeus_session", token, COOKIE_OPTS);
     await log("info", "auth", `Login: ${user.name}`);
     return { success: true, user: { id: user.id, name: user.name, role: user.role } };
   });
@@ -70,7 +80,7 @@ export async function authRoutes(app: FastifyInstance) {
   // Public: logout
   app.post("/api/auth/logout", async (req, reply) => {
     const token = req.cookies.zeus_session;
-    if (token) destroySession(token);
+    if (token) await destroySession(token);
     reply.clearCookie("zeus_session", { path: "/" });
     return { success: true };
   });
@@ -102,8 +112,8 @@ export async function authRoutes(app: FastifyInstance) {
     await markInviteUsed(code, user.id);
     await provisionUserAgents(user.id, user.assistantName, user.assistantPersonality, user.name);
 
-    const token = createSession(user.id);
-    reply.setCookie("zeus_session", token, { path: "/", httpOnly: true, sameSite: "lax", maxAge: 604800 });
+    const token = await createSession(user.id);
+    reply.setCookie("zeus_session", token, COOKIE_OPTS);
     await log("info", "auth", `New member joined: ${user.name} (${user.role})`);
     return { success: true, user: { id: user.id, name: user.name, role: user.role } };
   });
