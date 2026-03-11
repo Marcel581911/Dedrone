@@ -56,6 +56,8 @@ export async function provisionUserAgents(
 
   // All skills the orchestrator gets
   const orchSkills = [
+    // Multi-step planning
+    "plan_and_execute",
     // Core personal
     "create_ticket", "assign_ticket", "list_agents", "list_tickets",
     "read_emails", "send_email", "create_automation",
@@ -155,6 +157,25 @@ const ORCHESTRATOR_PROMPT = `You are Gulli — a personal life OS assistant. You
 - create_automation(what, systems?, frequency?, dataSource?, delivery?)
 - send_alert(message) — push to user via Telegram/SMS
 
+## 🧠 Multi-step planning — plan_and_execute(goal, context?)
+Use this when a request requires multiple dependent steps or a mix of research + action.
+
+**Use plan_and_execute when:**
+- Goal requires research THEN action (e.g. "find best hotels in Paris, compare and add reminder to book")
+- Goal has 3+ sub-tasks that depend on each other
+- User says "handle everything for X" or "set up Y from scratch"
+- Goal requires input from one step to inform the next
+
+**Do NOT use plan_and_execute for:**
+- Simple single-action requests ("add milk to shopping", "set a reminder")
+- Questions or lookups ("what's the weather?", "any flights soon?")
+- Requests where you can do it in 1–2 tool calls
+
+**Examples where plan_and_execute is the right call:**
+- "Prepare me for my Paris trip next week" → get trip details, check weather, check flight status, list what to pack, set check-in reminder
+- "Review my finances and create a savings plan" → get net worth + spending summary, analyse, save note with recommendations, set monthly review reminder
+- "Scan my emails for travel, build my itinerary, and alert me of anything urgent" → ingest_travel_emails, list upcoming trips, check flight statuses, send_alert if anything needs action
+
 ## How to handle common requests
 - "Brief me on today" / "What's my day?" → list_tickets + today's calendar events + due reminders + get_upcoming_trip
 - "Any flights soon?" → get_upcoming_trip, show departure + check weather at destination
@@ -164,7 +185,7 @@ const ORCHESTRATOR_PROMPT = `You are Gulli — a personal life OS assistant. You
 - "Add [item] to shopping" → add_to_shopping_list, confirm shop if known
 - "Remind me every week to buy X" → create_shopping_rule with trigger=weekly
 - "What's the weather?" → get_weather; if trip coming, check destination weather too
-- Complex goal → break into tickets, assign to the right specialist agent, confirm what was queued
+- Complex multi-step goal → plan_and_execute(goal)
 
 ## Proactive workflow patterns
 - If user mentions a trip destination → offer to check_flight_status and get_weather there
@@ -175,6 +196,7 @@ const ORCHESTRATOR_PROMPT = `You are Gulli — a personal life OS assistant. You
 
 ## Delegation
 For deep research, analysis of documents, or long summarization: create_ticket and assign to the Research Agent.
+For complex multi-step goals: plan_and_execute — it handles the full plan autonomously.
 
 Always confirm every action in one line: "Done — reminder set for Friday at 9am."`;
 

@@ -51,6 +51,16 @@ async function main() {
 
   await upsertSkill("list_agents", "List all available agents.", {});
 
+  await upsertSkill(
+    "plan_and_execute",
+    "Break a complex multi-step goal into a plan and execute each step autonomously, in parallel where possible. Use for goals that require multiple actions, research + execution, or sequential dependent tasks (e.g. 'research hotels in Paris, compare and recommend the best, add a reminder to book').",
+    {
+      goal:    { type: "string", description: "The complete goal to achieve" },
+      context: { type: "string", description: "Optional: extra context or constraints (budget, dates, preferences)" },
+    },
+    ["goal"]
+  );
+
   await upsertSkill("list_tickets", "List tasks, optionally filtered by status.",
     { status: { type: "string", enum: ["queued", "in_progress", "done", "failed"] } });
 

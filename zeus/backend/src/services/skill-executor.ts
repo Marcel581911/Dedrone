@@ -613,6 +613,26 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
       message: `Tickets:\n${tickets.map((t) => `  - [${t.status}] "${t.title}" (agent: ${t.agent?.name || "unassigned"})`).join("\n")}`,
     };
   },
+
+  // ── Multi-step plan-and-execute ────────────────────────────────────────────
+  plan_and_execute: async (args, userId) => {
+    const goal    = String(args.goal    || "").trim();
+    const context = String(args.context || "").trim();
+    if (!goal) return { success: false, data: {}, message: "A goal is required." };
+
+    const { planAndExecute } = await import("./plan-executor.js");
+    const result = await planAndExecute(goal, context, userId);
+
+    return {
+      success: result.success,
+      data: {
+        ticketId: result.ticketId,
+        stepCount: result.stepLogs.length,
+        stepsCompleted: result.stepLogs.filter((s) => s.status === "done").length,
+      },
+      message: result.summary,
+    };
+  },
 };
 
 export async function executeSkill(skillName: string, argsJson: string, userId: string): Promise<SkillResult> {
