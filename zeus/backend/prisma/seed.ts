@@ -1,4 +1,8 @@
 import { PrismaClient } from "@prisma/client";
+import { readFileSync } from "fs";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const prisma = new PrismaClient();
 
@@ -208,8 +212,8 @@ async function main() {
 
   // ── Module registry (specialist agent add-ons) ────────────────────────────
   const readManifest = (slug: string) => {
-    const p = require("path").resolve(__dirname, `../../modules/${slug}/manifest.json`);
-    try { return require("fs").readFileSync(p, "utf8"); } catch { return "{}"; }
+    const p = resolve(__dirname, `../../modules/${slug}/manifest.json`);
+    try { return readFileSync(p, "utf8"); } catch { return "{}"; }
   };
 
   const moduleDefinitions = [
