@@ -128,12 +128,14 @@ cat > "$ZEUS_ROOT/portal.py" << 'PYEOF'
 import http.server, socketserver, json, os, subprocess
 
 INSTANCES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "instances")
+DOMAIN = os.environ.get("ZEUS_DOMAIN", "")  # set by setup-domain.sh
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
+
         try:
             ip = subprocess.check_output(["hostname", "-I"]).decode().split()[0]
         except:
@@ -150,7 +152,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         links = ""
         for ws in workspaces:
-            links += f'<a href="http://{ip}:{ws["port"]}">{ws["name"]}<span>port {ws["port"]}</span></a>'
+            if DOMAIN:
+                href = f"https://{ws['name']}.{DOMAIN}"
+                label = f"{ws['name']}.{DOMAIN}"
+            else:
+                href = f"http://{ip}:{ws['port']}"
+                label = f"port {ws['port']}"
+            links += f'<a href="{href}">{ws["name"]}<span>{label}</span></a>'
 
         if not links:
             links = '<p style="color:#5a5a66;font-size:14px">No workspaces yet. Run: bash install.sh</p>'
@@ -204,6 +212,9 @@ echo "  First visit → onboarding (name, password)."
 echo ""
 echo "  To create another workspace:"
 echo "    bash install.sh"
+echo ""
+echo "  To set up a custom domain + HTTPS:"
+echo "    bash scripts/setup-domain.sh"
 echo ""
 echo "  Commands:"
 echo "    sudo systemctl status ${SERVICE_NAME}"
