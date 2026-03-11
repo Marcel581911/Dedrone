@@ -4,269 +4,223 @@ import { log } from "../logger.js";
 import { chatWithAgent } from "./chat.js";
 import crypto from "crypto";
 
-let bot: Telegraf | null = null;
-let botRunning = false;
-let botUsername = "";
-
-export function isBotRunning() {
-  return botRunning;
+interface BotInstance {
+  bot: Telegraf;
+  username: string;
+  userId: string;
 }
 
-export function getBotInfo() {
-  return { running: botRunning, username: botUsername };
+// Registry: one bot instance per user
+const bots = new Map<string, BotInstance>();
+
+export function getBotInfo(userId: string) {
+  const inst = bots.get(userId);
+  return { running: !!inst, username: inst?.username || "" };
 }
 
-export async function startBot(): Promise<{ success: boolean; username?: string; error?: string }> {
-  if (botRunning && bot) {
-    return { success: true, username: botUsername };
+function buildBot(token: string, userId: string): Telegraf {
+  const bot = new Telegraf(token);
+
+  bot.start(async (ctx) => {
+    await ctx.reply(
+      `⚡ *ZEUS Agent Runtime*\n\n` +
+      `This bot connects you to your personal ZEUS assistant.\n\n` +
+      `To pair this chat with your agent, get a pairing code from Settings → Profile and send:\n\n` +
+      `\`/pair CODE\``,
+      { parse_mode: "Markdown" }
+    );
+  });
+
+  bot.command("pair", async (ctx) => {
+    const code = ctx.message.text.split(/\s+/)[1]?.trim();
+    if (!code) {
+      await ctx.reply("Usage: /pair CODE\n\nGenerate a code from ZEUS → Settings → Profile → Telegram.");
+      return;
+    }
+
+    const pairingCode = await prisma.telegramPairingCode.findUnique({ where: { code } });
+    if (!pairingCode) {
+      await ctx.reply("Invalid pairing code. Generate a new one from ZEUS.");
+      return;
+    }
+    if (pairingCode.expiresAt < new Date()) {
+      await prisma.telegramPairingCode.delete({ where: { id: pairingCode.id } });
+      await ctx.reply("This code has expired. Generate a new one.");
+      return;
+    }
+
+    // Verify the agent belongs to this bot's owner
+    const agent = await prisma.agent.findUnique({ where: { id: pairingCode.agentId } });
+    if (!agent || agent.userId !== userId) {
+      await ctx.reply("This code is not valid for this bot.");
+      return;
+    }
+
+    const chatId = String(ctx.chat.id);
+    const chatTitle = ctx.chat.type === "private"
+      ? `${ctx.from.first_name || ""} ${ctx.from.last_name || ""}`.trim()
+      : (ctx.chat as any).title || `Chat ${chatId}`;
+
+    await prisma.telegramPairing.upsert({
+      where: { telegramChatId: chatId },
+      update: { agentId: pairingCode.agentId, chatTitle },
+      create: { telegramChatId: chatId, agentId: pairingCode.agentId, chatTitle },
+    });
+    await prisma.telegramPairingCode.delete({ where: { id: pairingCode.id } });
+
+    await ctx.reply(
+      `✅ *Paired!*\n\nThis chat is now connected to *${agent.name}*.\n\n` +
+      `/status — Check connection\n/unpair — Disconnect\n/newchat — Fresh conversation`,
+      { parse_mode: "Markdown" }
+    );
+    await log("info", "telegram", `"${chatTitle}" paired with agent "${agent.name}"`, { chatId, agentId: agent.id });
+  });
+
+  bot.command("status", async (ctx) => {
+    const chatId = String(ctx.chat.id);
+    const pairing = await prisma.telegramPairing.findUnique({
+      where: { telegramChatId: chatId },
+      include: { agent: true },
+    });
+    if (!pairing) { await ctx.reply("Not paired. Use /pair CODE to connect."); return; }
+    await ctx.reply(
+      `⚡ *Status*\n\nAgent: *${pairing.agent.name}*\nRole: ${pairing.agent.role}\nModel: ${pairing.agent.model}\nStatus: ${pairing.agent.enabled ? "✅ Active" : "❌ Disabled"}`,
+      { parse_mode: "Markdown" }
+    );
+  });
+
+  bot.command("unpair", async (ctx) => {
+    const chatId = String(ctx.chat.id);
+    const pairing = await prisma.telegramPairing.findUnique({ where: { telegramChatId: chatId } });
+    if (!pairing) { await ctx.reply("This chat is not paired."); return; }
+    await prisma.telegramPairing.delete({ where: { id: pairing.id } });
+    await ctx.reply("Unpaired. Disconnected from your agent.");
+    await log("info", "telegram", "Chat unpaired", { chatId });
+  });
+
+  bot.command("newchat", async (ctx) => {
+    const chatId = String(ctx.chat.id);
+    const pairing = await prisma.telegramPairing.findUnique({ where: { telegramChatId: chatId } });
+    if (!pairing) { await ctx.reply("Not paired. Use /pair CODE first."); return; }
+    await prisma.telegramPairing.update({ where: { id: pairing.id }, data: { conversationId: null } });
+    await ctx.reply("Fresh conversation started. Your next message begins a new thread.");
+  });
+
+  bot.on("text", async (ctx) => {
+    if (ctx.message.text.startsWith("/")) return;
+    const chatId = String(ctx.chat.id);
+
+    const pairing = await prisma.telegramPairing.findUnique({
+      where: { telegramChatId: chatId },
+      include: { agent: true },
+    });
+    if (!pairing) { await ctx.reply("Not paired. Use /pair CODE to connect."); return; }
+    if (!pairing.agent.enabled) { await ctx.reply(`Agent "${pairing.agent.name}" is currently disabled.`); return; }
+
+    let conversationId = pairing.conversationId;
+    if (!conversationId) {
+      const conv = await prisma.conversation.create({
+        data: { agentId: pairing.agentId, title: `Telegram: ${pairing.chatTitle}` },
+      });
+      conversationId = conv.id;
+      await prisma.telegramPairing.update({ where: { id: pairing.id }, data: { conversationId } });
+    }
+
+    await ctx.sendChatAction("typing");
+    try {
+      const result = await chatWithAgent(pairing.agentId, conversationId, ctx.message.text, userId);
+      const response = result.message.content;
+      const chunks = splitMessage(response, 4096);
+      for (const chunk of chunks) {
+        await ctx.reply(chunk, { parse_mode: "Markdown" }).catch(() => ctx.reply(chunk));
+      }
+    } catch (e: any) {
+      await ctx.reply(`Error: ${e.message}`);
+      await log("error", "telegram", `Message error: ${e.message}`, { chatId });
+    }
+  });
+
+  return bot;
+}
+
+export async function startBot(userId: string): Promise<{ success: boolean; username?: string; error?: string }> {
+  // Stop existing instance first if token changed
+  if (bots.has(userId)) {
+    return { success: true, username: bots.get(userId)!.username };
   }
 
-  const tokenSetting = await prisma.setting.findUnique({ where: { key: "telegram_bot_token" } });
-  if (!tokenSetting?.value) {
-    return { success: false, error: "No Telegram bot token configured. Add it in Settings." };
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.telegramBotToken) {
+    return { success: false, error: "No bot token configured. Add yours in Profile → Telegram." };
   }
 
   try {
-    bot = new Telegraf(tokenSetting.value);
-
-    // /start command — show welcome and instructions
-    bot.start(async (ctx) => {
-      await ctx.reply(
-        `⚡ *ZEUS Agent Runtime*\n\n` +
-        `This bot connects you to ZEUS agents.\n\n` +
-        `To pair this chat with an agent, get a pairing code from the ZEUS dashboard and send it here:\n\n` +
-        `\`/pair CODE\`\n\n` +
-        `Once paired, any message you send will go directly to your agent.`,
-        { parse_mode: "Markdown" }
-      );
-    });
-
-    // /pair CODE — link this Telegram chat to an agent
-    bot.command("pair", async (ctx) => {
-      const code = ctx.message.text.split(/\s+/)[1]?.trim();
-      if (!code) {
-        await ctx.reply("Usage: /pair CODE\n\nGet a pairing code from the ZEUS dashboard → Agent → Telegram tab.");
-        return;
-      }
-
-      const pairingCode = await prisma.telegramPairingCode.findUnique({ where: { code } });
-      if (!pairingCode) {
-        await ctx.reply("Invalid pairing code. Generate a new one from the ZEUS dashboard.");
-        return;
-      }
-
-      if (pairingCode.expiresAt < new Date()) {
-        await prisma.telegramPairingCode.delete({ where: { id: pairingCode.id } });
-        await ctx.reply("This pairing code has expired. Generate a new one from the ZEUS dashboard.");
-        return;
-      }
-
-      const chatId = String(ctx.chat.id);
-      const chatTitle = ctx.chat.type === "private"
-        ? `${ctx.from.first_name || ""} ${ctx.from.last_name || ""}`.trim()
-        : (ctx.chat as any).title || `Chat ${chatId}`;
-
-      // Create or update pairing
-      await prisma.telegramPairing.upsert({
-        where: { telegramChatId: chatId },
-        update: { agentId: pairingCode.agentId, chatTitle },
-        create: { telegramChatId: chatId, agentId: pairingCode.agentId, chatTitle },
-      });
-
-      // Clean up used code
-      await prisma.telegramPairingCode.delete({ where: { id: pairingCode.id } });
-
-      const agent = await prisma.agent.findUnique({ where: { id: pairingCode.agentId } });
-      await ctx.reply(
-        `✅ *Paired successfully!*\n\n` +
-        `This chat is now connected to agent *${agent?.name || "Unknown"}*.\n` +
-        `Any message you send here will be processed by this agent.\n\n` +
-        `Commands:\n` +
-        `/status — Check connection\n` +
-        `/unpair — Disconnect from agent\n` +
-        `/newchat — Start a fresh conversation`,
-        { parse_mode: "Markdown" }
-      );
-
-      await log("info", "telegram", `Chat "${chatTitle}" paired with agent "${agent?.name}"`, {
-        chatId, agentId: pairingCode.agentId,
-      });
-    });
-
-    // /status — show current pairing
-    bot.command("status", async (ctx) => {
-      const chatId = String(ctx.chat.id);
-      const pairing = await prisma.telegramPairing.findUnique({
-        where: { telegramChatId: chatId },
-        include: { agent: true },
-      });
-
-      if (!pairing) {
-        await ctx.reply("This chat is not paired to any agent.\nUse /pair CODE to connect.");
-        return;
-      }
-
-      await ctx.reply(
-        `⚡ *ZEUS Status*\n\n` +
-        `Agent: *${pairing.agent.name}*\n` +
-        `Role: ${pairing.agent.role}\n` +
-        `Model: ${pairing.agent.model}\n` +
-        `Status: ${pairing.agent.enabled ? "✅ Active" : "❌ Disabled"}`,
-        { parse_mode: "Markdown" }
-      );
-    });
-
-    // /unpair — disconnect
-    bot.command("unpair", async (ctx) => {
-      const chatId = String(ctx.chat.id);
-      const pairing = await prisma.telegramPairing.findUnique({ where: { telegramChatId: chatId } });
-      if (!pairing) {
-        await ctx.reply("This chat is not paired to any agent.");
-        return;
-      }
-
-      await prisma.telegramPairing.delete({ where: { id: pairing.id } });
-      await ctx.reply("Unpaired. This chat is no longer connected to a ZEUS agent.");
-      await log("info", "telegram", `Chat unpaired`, { chatId });
-    });
-
-    // /newchat — start fresh conversation thread
-    bot.command("newchat", async (ctx) => {
-      const chatId = String(ctx.chat.id);
-      const pairing = await prisma.telegramPairing.findUnique({ where: { telegramChatId: chatId } });
-      if (!pairing) {
-        await ctx.reply("This chat is not paired. Use /pair CODE first.");
-        return;
-      }
-
-      // Clear conversation reference so the next message creates a new one
-      await prisma.telegramPairing.update({
-        where: { id: pairing.id },
-        data: { conversationId: null },
-      });
-      await ctx.reply("Fresh conversation started. Your next message begins a new thread.");
-    });
-
-    // Handle all text messages — route to paired agent
-    bot.on("text", async (ctx) => {
-      // Ignore commands (already handled above)
-      if (ctx.message.text.startsWith("/")) return;
-
-      const chatId = String(ctx.chat.id);
-      const pairing = await prisma.telegramPairing.findUnique({
-        where: { telegramChatId: chatId },
-        include: { agent: true },
-      });
-
-      if (!pairing) {
-        await ctx.reply("This chat is not paired to any agent.\nUse /pair CODE to connect.");
-        return;
-      }
-
-      if (!pairing.agent.enabled) {
-        await ctx.reply(`Agent "${pairing.agent.name}" is currently disabled.`);
-        return;
-      }
-
-      // Get or create a conversation for this Telegram chat
-      let conversationId = pairing.conversationId;
-      if (!conversationId) {
-        const conv = await prisma.conversation.create({
-          data: {
-            agentId: pairing.agentId,
-            title: `Telegram: ${pairing.chatTitle}`,
-          },
-        });
-        conversationId = conv.id;
-        await prisma.telegramPairing.update({
-          where: { id: pairing.id },
-          data: { conversationId },
-        });
-      }
-
-      // Show "typing" indicator
-      await ctx.sendChatAction("typing");
-
-      try {
-        const result = await chatWithAgent(pairing.agentId, conversationId, ctx.message.text);
-        const response = result.message.content;
-
-        // Telegram has a 4096 char limit per message — split if needed
-        if (response.length <= 4096) {
-          await ctx.reply(response, { parse_mode: "Markdown" }).catch(() =>
-            ctx.reply(response)
-          );
-        } else {
-          const chunks = splitMessage(response, 4096);
-          for (const chunk of chunks) {
-            await ctx.reply(chunk, { parse_mode: "Markdown" }).catch(() =>
-              ctx.reply(chunk)
-            );
-          }
-        }
-
-        await log("info", "telegram", `Message processed for "${pairing.chatTitle}"`, {
-          chatId, agentId: pairing.agentId,
-        });
-      } catch (e: any) {
-        await ctx.reply(`Error: ${e.message}`);
-        await log("error", "telegram", `Message error: ${e.message}`, { chatId });
-      }
-    });
-
-    // Launch bot
+    const bot = buildBot(user.telegramBotToken, userId);
     await bot.launch();
     const me = await bot.telegram.getMe();
-    botUsername = me.username || "";
-    botRunning = true;
+    const username = me.username || "";
 
-    await log("info", "telegram", `Bot started: @${botUsername}`);
-    console.log(`📱 Telegram bot running: @${botUsername}`);
+    bots.set(userId, { bot, username, userId });
+    await log("info", "telegram", `Bot @${username} started for user ${user.name}`);
+    console.log(`📱 Telegram bot @${username} started (user: ${user.name})`);
 
-    // Graceful stop
-    const shutdown = () => {
-      bot?.stop("SIGTERM");
-      botRunning = false;
-    };
-    process.once("SIGINT", shutdown);
-    process.once("SIGTERM", shutdown);
-
-    return { success: true, username: botUsername };
+    return { success: true, username };
   } catch (e: any) {
-    bot = null;
-    botRunning = false;
-    await log("error", "telegram", `Bot start failed: ${e.message}`);
+    await log("error", "telegram", `Bot start failed for user ${userId}: ${e.message}`);
     return { success: false, error: e.message };
   }
 }
 
-export async function stopBot(): Promise<{ success: boolean }> {
-  if (bot) {
-    bot.stop("manual");
-    bot = null;
+export async function stopBot(userId: string): Promise<{ success: boolean }> {
+  const inst = bots.get(userId);
+  if (inst) {
+    try { inst.bot.stop("manual"); } catch {}
+    bots.delete(userId);
   }
-  botRunning = false;
-  botUsername = "";
-  await log("info", "telegram", "Bot stopped");
-  console.log("📱 Telegram bot stopped");
+  await log("info", "telegram", `Bot stopped for user ${userId}`);
   return { success: true };
 }
 
+// Restart a bot (e.g. after token update)
+export async function restartBot(userId: string): Promise<{ success: boolean; username?: string; error?: string }> {
+  await stopBot(userId);
+  return startBot(userId);
+}
+
+// Called at server startup — boot a bot for every user who has a token
+export async function startAllUserBots(): Promise<void> {
+  const users = await prisma.user.findMany({
+    where: { telegramBotToken: { not: "" } },
+    select: { id: true, name: true },
+  });
+  for (const user of users) {
+    const r = await startBot(user.id);
+    if (!r.success) console.log(`📱 Bot for ${user.name} failed: ${r.error}`);
+  }
+}
+
+// Send a message using the user's own running bot
+export async function sendTelegramMessage(userId: string, chatId: string, message: string): Promise<boolean> {
+  const inst = bots.get(userId);
+  if (!inst) return false;
+  try {
+    await inst.bot.telegram.sendMessage(chatId, message, { parse_mode: "Markdown" });
+    return true;
+  } catch {
+    // Try plain text fallback if Markdown fails
+    try {
+      await inst.bot.telegram.sendMessage(chatId, message);
+      return true;
+    } catch { return false; }
+  }
+}
+
 export async function generatePairingCode(agentId: string): Promise<string> {
-  // Clean up expired codes
-  await prisma.telegramPairingCode.deleteMany({
-    where: { expiresAt: { lt: new Date() } },
-  });
-
-  // Generate a 6-character alphanumeric code
+  await prisma.telegramPairingCode.deleteMany({ where: { expiresAt: { lt: new Date() } } });
   const code = crypto.randomBytes(3).toString("hex").toUpperCase();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-  await prisma.telegramPairingCode.create({
-    data: { code, agentId, expiresAt },
-  });
-
-  await log("info", "telegram", `Pairing code generated for agent ${agentId}: ${code}`, { agentId });
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+  await prisma.telegramPairingCode.create({ data: { code, agentId, expiresAt } });
+  await log("info", "telegram", `Pairing code generated for agent ${agentId}: ${code}`);
   return code;
 }
 
@@ -274,10 +228,7 @@ function splitMessage(text: string, maxLen: number): string[] {
   const chunks: string[] = [];
   let remaining = text;
   while (remaining.length > 0) {
-    if (remaining.length <= maxLen) {
-      chunks.push(remaining);
-      break;
-    }
+    if (remaining.length <= maxLen) { chunks.push(remaining); break; }
     let splitAt = remaining.lastIndexOf("\n", maxLen);
     if (splitAt < maxLen / 2) splitAt = maxLen;
     chunks.push(remaining.slice(0, splitAt));

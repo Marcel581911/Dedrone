@@ -112,14 +112,8 @@ export async function chatWithAgent(
 
     if (!finalContent && toolLog.length > 0) finalContent = "Done.";
 
-    if (missingSkill) {
-      finalContent += finalContent
-        ? `\n\n---\n*Note: This may require the skill "${missingSkill}" which is not currently available. A skill gap has been recorded.*`
-        : `I detected that this request may require the skill "${missingSkill}" which is not available. Gap recorded.`;
-    }
-
-    if (toolLog.length > 0) {
-      finalContent += `\n\n---\n**Actions taken:**\n${toolLog.map((l) => `  ${l}`).join("\n")}`;
+    if (missingSkill && !finalContent) {
+      finalContent = `I don't have the "${missingSkill}" skill yet. A gap has been recorded for future development.`;
     }
 
     const assistantMsg = await prisma.message.create({ data: { conversationId, role: "assistant", content: finalContent } });
@@ -150,25 +144,57 @@ async function buildSystemPrompt(
   prompt += `\n\nYou are ${agent.name}, a ${agent.role}.`;
   prompt += `\nYour mission: ${agent.mission}`;
 
-  const allAgents = await prisma.agent.findMany({
-    where: { enabled: true, OR: [{ userId }, { userId: null }] },
-    select: { id: true, name: true, role: true, mission: true },
-  });
+  // Current date/time context
+  const now = new Date();
+  prompt += `\n\n## Current Date & Time\n${now.toUTCString()} (UTC)`;
+
+  // User context + pending summary
+  const [user, pendingTasks, todayEvents, pendingReminders, automations, allAgents] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true, city: true, timezone: true } }),
+    prisma.ticket.count({ where: { userId, status: { in: ["queued", "in_progress"] } } }),
+    prisma.calendarEvent.count({
+      where: {
+        userId,
+        startAt: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()), lt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) },
+      },
+    }),
+    prisma.reminder.count({ where: { userId, status: "pending", dueAt: { lte: new Date(now.getTime() + 24 * 60 * 60 * 1000) } } }),
+    prisma.automation.findMany({ where: { status: "active" }, select: { id: true, what: true, frequency: true }, take: 10 }),
+    prisma.agent.findMany({
+      where: { enabled: true, OR: [{ userId }, { userId: null }] },
+      select: { id: true, name: true, role: true, mission: true },
+    }),
+  ]);
+
+  if (user) {
+    prompt += `\n\n## User\nName: ${user.name}`;
+    if (user.city) prompt += ` | City: ${user.city}`;
+    if (user.timezone) prompt += ` | Timezone: ${user.timezone}`;
+  }
+
+  prompt += `\n\n## Current Status\n- Pending tasks: ${pendingTasks}\n- Events today: ${todayEvents}\n- Reminders due in 24h: ${pendingReminders}`;
+
+  if (automations.length > 0) {
+    prompt += `\n\n## Active Automations (already set up — do NOT recreate these)\n`;
+    for (const a of automations) {
+      prompt += `\n  - [${a.id}] ${a.what}${a.frequency ? ` (${a.frequency})` : ""}`;
+    }
+    prompt += `\n\nBefore creating an automation, check this list to avoid duplicates.`;
+  }
 
   if (allAgents.length > 1) {
-    prompt += `\n\n## Team — Available Agents\nYou can assign work to these agents by creating tickets:`;
+    prompt += `\n\n## Agent Team\n`;
     for (const a of allAgents) {
       prompt += a.id === agent.id
-        ? `\n  - ${a.name} (ID: ${a.id}) — THIS IS YOU`
+        ? `\n  - ${a.name} (ID: ${a.id}) — YOU`
         : `\n  - ${a.name} (ID: ${a.id}) — ${a.role}: ${a.mission}`;
     }
-    prompt += `\n\nTo delegate: call create_ticket then assign_ticket with the ticketId and agent ID.`;
+    prompt += `\n\nTo delegate: create_ticket then assign_ticket with ticketId and agent ID.`;
   }
 
   if (skills.length > 0) {
-    prompt += `\n\n## Your Skills\n`;
+    prompt += `\n\n## Your Tools\n`;
     for (const s of skills) prompt += `\n  - ${s.name}: ${s.description}`;
-    prompt += `\n\nIf a user asks for something you don't have a tool for, clearly state you lack that skill.`;
   } else {
     prompt += `\n\nYou have no registered tools.`;
   }

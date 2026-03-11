@@ -1,0 +1,2 @@
+ALTER TABLE "Ticket" ADD COLUMN "recurring" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "Ticket" ADD COLUMN "completedAt" DATETIME;

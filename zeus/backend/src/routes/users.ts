@@ -2,16 +2,35 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../db.js";
 import { updateUserPassword, createInviteCode } from "../services/auth.js";
 import { log } from "../logger.js";
+import { getBotInfo } from "../services/telegram.js";
 
+// Raw select — telegramBotToken fetched but stripped before returning
 const USER_SELECT = {
   id: true, name: true, role: true, city: true,
-  timezone: true, assistantName: true, assistantPersonality: true, createdAt: true,
+  timezone: true, assistantName: true, assistantPersonality: true,
+  phone: true, telegramChatId: true, telegramBotToken: true, createdAt: true,
 } as const;
+
+function maskToken(token: string): string {
+  if (!token) return "";
+  return token.slice(0, 6) + "••••••••" + token.slice(-4);
+}
+
+function sanitizeUser(u: any) {
+  const { telegramBotToken, ...rest } = u;
+  return {
+    ...rest,
+    telegramBotTokenSet: !!telegramBotToken,
+    telegramBotTokenMasked: maskToken(telegramBotToken),
+  };
+}
 
 export async function userRoutes(app: FastifyInstance) {
   // Get current user profile
   app.get("/api/users/me", async (req) => {
-    return prisma.user.findUniqueOrThrow({ where: { id: req.userId }, select: USER_SELECT });
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: req.userId }, select: USER_SELECT });
+    const botInfo = getBotInfo(req.userId);
+    return { ...sanitizeUser(user), telegramBotRunning: botInfo.running, telegramBotUsername: botInfo.username };
   });
 
   // Update own profile
@@ -22,6 +41,12 @@ export async function userRoutes(app: FastifyInstance) {
     if (body.timezone !== undefined) data.timezone = body.timezone;
     if (body.assistantName !== undefined) data.assistantName = body.assistantName;
     if (body.assistantPersonality !== undefined) data.assistantPersonality = body.assistantPersonality;
+    if (body.phone !== undefined) data.phone = body.phone;
+    if (body.telegramChatId !== undefined) data.telegramChatId = body.telegramChatId;
+    // Only save token if it's a new plain-text value (not the masked placeholder)
+    if (body.telegramBotToken !== undefined && !body.telegramBotToken.includes("••")) {
+      data.telegramBotToken = body.telegramBotToken;
+    }
 
     const user = await prisma.user.update({ where: { id: req.userId }, data, select: USER_SELECT });
 
@@ -33,13 +58,15 @@ export async function userRoutes(app: FastifyInstance) {
       });
     }
 
-    return { success: true, user };
+    const botInfo = getBotInfo(req.userId);
+    return { success: true, user: { ...sanitizeUser(user), telegramBotRunning: botInfo.running, telegramBotUsername: botInfo.username } };
   });
 
   // List all users — admin only
   app.get("/api/users", async (req, reply) => {
     if (req.userRole !== "admin") return reply.status(403).send({ error: "Admin only." });
-    return prisma.user.findMany({ select: USER_SELECT, orderBy: { createdAt: "asc" } });
+    const users = await prisma.user.findMany({ select: USER_SELECT, orderBy: { createdAt: "asc" } });
+    return users.map(sanitizeUser);
   });
 
   // Update any user — admin only

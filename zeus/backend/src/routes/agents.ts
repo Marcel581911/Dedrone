@@ -1,6 +1,9 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../db.js";
-import { storeMemory, searchMemory } from "../services/memory.js";
+import { storeMemory, searchMemory, chunkText } from "../services/memory.js";
+import { parseImportFile } from "../services/memory-import.js";
+import { log } from "../logger.js";
+import { guardrailError, MAX_AGENTS_PER_USER } from "../services/guardrail.js";
 
 // Agents visible to a user: their own + system agents (userId = null)
 function userAgentFilter(userId: string) {
@@ -31,7 +34,19 @@ export async function agentRoutes(app: FastifyInstance) {
     return agent;
   });
 
-  app.post("/api/agents", async (req) => {
+  app.post("/api/agents", async (req, reply) => {
+    // Admins are exempt from the cap
+    if (req.userRole !== "admin") {
+      const count = await prisma.agent.count({ where: { userId: req.userId } });
+      if (count >= MAX_AGENTS_PER_USER) {
+        const g = guardrailError(
+          `You have reached the agent limit (${MAX_AGENTS_PER_USER}). Log a support ticket to request an increase.`,
+          "Create agent"
+        );
+        return reply.status(g.status).send(g.body);
+      }
+    }
+
     const body = req.body as any;
     return prisma.agent.create({
       data: {
@@ -54,6 +69,12 @@ export async function agentRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const agent = await prisma.agent.findFirst({ where: { id, ...userAgentFilter(req.userId) } });
     if (!agent) return reply.status(404).send({ error: "Agent not found." });
+
+    // Non-admins cannot edit system agents
+    if (req.userRole !== "admin" && (agent.isSystem || agent.userId === null)) {
+      const g = guardrailError("System agents can only be modified by an admin.", "Edit system agent");
+      return reply.status(g.status).send(g.body);
+    }
 
     const body = req.body as any;
     const data: any = {};
@@ -132,5 +153,56 @@ export async function agentRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string };
     const { query, limit } = req.body as { query: string; limit?: number };
     return searchMemory(id, query, limit || 8);
+  });
+
+  app.delete("/api/agents/:id/memory/:memId", async (req, reply) => {
+    const { id, memId } = req.params as { id: string; memId: string };
+    await prisma.memory.deleteMany({ where: { id: memId, agentId: id } });
+    return { success: true };
+  });
+
+  // Memory import — accepts a file upload and ingests it into agent memory
+  app.post("/api/agents/:id/memory/import", async (req, reply) => {
+    const { id } = req.params as { id: string };
+
+    const agent = await prisma.agent.findFirst({ where: { id, ...userAgentFilter(req.userId) } });
+    if (!agent) return reply.status(404).send({ error: "Agent not found." });
+
+    const data = await req.file();
+    if (!data) return reply.status(400).send({ error: "No file provided." });
+
+    const buffer = await data.toBuffer();
+    if (buffer.length > 20 * 1024 * 1024) {
+      return reply.status(400).send({ error: "File too large. Maximum 20MB." });
+    }
+
+    try {
+      const { entries, format } = await parseImportFile(data.filename || "upload", buffer);
+
+      if (entries.length === 0) {
+        return { imported: 0, skipped: 0, format, message: "No importable content found in this file." };
+      }
+
+      let imported = 0;
+      let skipped = 0;
+
+      for (const entry of entries) {
+        const content = entry.content.trim();
+        if (content.length < 10) { skipped++; continue; }
+
+        // Chunk large entries
+        const chunks = chunkText(content);
+        for (const chunk of chunks) {
+          await storeMemory(id, chunk, entry.type || "import", {});
+        }
+        imported++;
+      }
+
+      await log("info", "memory", `Imported ${imported} entries (${format}) into agent ${id}`);
+      return { imported, skipped, format, message: `Imported ${imported} entr${imported === 1 ? "y" : "ies"} from ${format} file.` };
+    } catch (e: any) {
+      await log("error", "memory", `Import failed for agent ${id}: ${e.message}`);
+      return reply.status(400).send({ error: `Import failed: ${e.message}` });
+    }
   });
 }

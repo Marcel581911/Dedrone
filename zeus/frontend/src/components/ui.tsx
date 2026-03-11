@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, forwardRef } from "react";
 
 export function Card({ children, className = "", style }: { children: ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
@@ -17,13 +17,13 @@ export function Label({ children }: { children: ReactNode }) {
   return <label className="block text-xs mb-1.5" style={{ color: "var(--text-muted)" }}>{children}</label>;
 }
 
-export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input {...props}
+export const Input = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
+  (props, ref) => (
+    <input {...props} ref={ref}
       className={`w-full rounded-md border px-3 py-2 text-sm transition-colors ${props.className || ""}`}
       style={{ background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--text-primary)", ...props.style }} />
-  );
-}
+  )
+);
 
 export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (

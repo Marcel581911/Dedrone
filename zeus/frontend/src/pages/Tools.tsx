@@ -6,6 +6,9 @@ import Calendar from "./Calendar";
 import Email from "./Email";
 import Notes from "./Notes";
 import Automations from "./Automations";
+import Finance from "./Finance";
+import Shopping from "./Shopping";
+import Travel from "./Travel";
 import { Card, Btn, Badge, Input, Label } from "../components/ui";
 
 // Built-in tools (always available)
@@ -15,6 +18,9 @@ const BUILTIN_TOOLS = [
   { id: "email", label: "Email", path: "email" },
   { id: "notes", label: "Notes", path: "notes" },
   { id: "automations", label: "Automations", path: "automations" },
+  { id: "finance", label: "Finance", path: "finance" },
+  { id: "shopping", label: "Shopping", path: "shopping" },
+  { id: "travel", label: "Travel", path: "travel" },
 ];
 
 export default function Tools() {
@@ -81,6 +87,9 @@ export default function Tools() {
         <Route path="email" element={<Email />} />
         <Route path="notes" element={<Notes />} />
         <Route path="automations" element={<Automations />} />
+        <Route path="finance" element={<Finance />} />
+        <Route path="shopping" element={<Shopping />} />
+        <Route path="travel" element={<Travel />} />
         <Route index element={
           <div className="max-w-4xl">
             {/* Config panel */}

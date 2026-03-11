@@ -1,5 +1,14 @@
 const BASE = "/api";
 
+export class GuardrailError extends Error {
+  action?: string;
+  constructor(message: string, action?: string) {
+    super(message);
+    this.name = "GuardrailError";
+    this.action = action;
+  }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {};
   if (options?.body) headers["Content-Type"] = "application/json";
@@ -11,6 +20,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     if (err.error === "not_authenticated") window.dispatchEvent(new CustomEvent("zeus:logout"));
+    // Guardrail errors get a special type so the UI can offer ticket logging
+    if (err.code === "GUARDRAIL" || err.canLogTicket) {
+      const ge = new GuardrailError(err.message || err.error || "Action not permitted", err.action);
+      window.dispatchEvent(new CustomEvent("zeus:guardrail", { detail: ge }));
+      throw ge;
+    }
     throw new Error(err.error || "Request failed");
   }
   return res.json();
@@ -64,6 +79,18 @@ export const api = {
   // Memory
   getMemory: (agentId: string) => request<any[]>(`/agents/${agentId}/memory`),
   addMemory: (agentId: string, data: any) => request<any>(`/agents/${agentId}/memory`, { method: "POST", body: JSON.stringify(data) }),
+  deleteMemory: (agentId: string, memId: string) => request<any>(`/agents/${agentId}/memory/${memId}`, { method: "DELETE" }),
+  importMemory: async (agentId: string, file: File): Promise<any> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`/api/agents/${agentId}/memory/import`, {
+      method: "POST",
+      credentials: "include",
+      body: form,
+    });
+    if (!res.ok) { const e = await res.json().catch(() => ({ error: res.statusText })); throw new Error(e.error || "Import failed"); }
+    return res.json();
+  },
 
   // Tickets
   getTickets: (params?: Record<string, string>) => { const qs = params ? "?" + new URLSearchParams(params).toString() : ""; return request<any[]>(`/tickets${qs}`); },
@@ -91,6 +118,7 @@ export const api = {
   telegramPair: (agentId: string) => request<any>(`/telegram/pair/${agentId}`, { method: "POST" }),
   telegramPairings: () => request<any[]>("/telegram/pairings"),
   telegramUnpair: (id: string) => request<any>(`/telegram/pairings/${id}`, { method: "DELETE" }),
+  telegramRestart: () => request<any>("/telegram/restart", { method: "POST" }),
 
   // Automations
   getAutomations: () => request<any[]>("/automations"),
@@ -165,4 +193,105 @@ export const api = {
   getVersion: () => request<any>("/version"),
   checkUpdate: () => request<any>("/version/check", { method: "POST" }),
   applyUpdate: () => request<any>("/version/update", { method: "POST" }),
+
+  // Alerts
+  testAlert: (channel?: "telegram" | "sms" | "all") =>
+    request<any>("/alerts/test", { method: "POST", body: JSON.stringify({ channel: channel || "all" }) }),
+
+  // Support
+  getSupportTickets: (params?: Record<string, string>) => { const qs = params ? "?" + new URLSearchParams(params).toString() : ""; return request<any[]>(`/support/tickets${qs}`); },
+  getSupportTicket: (id: string) => request<any>(`/support/tickets/${id}`),
+  createSupportTicket: (data: any) => request<any>("/support/tickets", { method: "POST", body: JSON.stringify(data) }),
+  updateSupportTicket: (id: string, data: any) => request<any>(`/support/tickets/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteSupportTicket: (id: string) => request<any>(`/support/tickets/${id}`, { method: "DELETE" }),
+  addSupportComment: (id: string, content: string) => request<any>(`/support/tickets/${id}/comments`, { method: "POST", body: JSON.stringify({ content }) }),
+  getSupportStats: () => request<any>("/support/stats"),
+
+  // Finance
+  financeSummary: () => request<any>("/finance/summary"),
+  getAccounts: () => request<any[]>("/finance/accounts"),
+  createAccount: (data: any) => request<any>("/finance/accounts", { method: "POST", body: JSON.stringify(data) }),
+  updateAccount: (id: string, data: any) => request<any>(`/finance/accounts/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteAccount: (id: string) => request<any>(`/finance/accounts/${id}`, { method: "DELETE" }),
+  importStatement: async (accountId: string, file: File): Promise<any> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`/api/finance/accounts/${accountId}/import`, { method: "POST", credentials: "include", body: form });
+    if (!res.ok) { const e = await res.json().catch(() => ({ error: res.statusText })); throw new Error(e.error || "Import failed"); }
+    return res.json();
+  },
+  getTransactions: (params?: Record<string, string>) => { const qs = params ? "?" + new URLSearchParams(params).toString() : ""; return request<any[]>(`/finance/transactions${qs}`); },
+  createTransaction: (data: any) => request<any>("/finance/transactions", { method: "POST", body: JSON.stringify(data) }),
+  updateTransaction: (id: string, data: any) => request<any>(`/finance/transactions/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteTransaction: (id: string) => request<any>(`/finance/transactions/${id}`, { method: "DELETE" }),
+  getAssets: () => request<any[]>("/finance/assets"),
+  createAsset: (data: any) => request<any>("/finance/assets", { method: "POST", body: JSON.stringify(data) }),
+  updateAsset: (id: string, data: any) => request<any>(`/finance/assets/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteAsset: (id: string) => request<any>(`/finance/assets/${id}`, { method: "DELETE" }),
+  getStocks: () => request<any[]>("/finance/stocks"),
+  createStock: (data: any) => request<any>("/finance/stocks", { method: "POST", body: JSON.stringify(data) }),
+  updateStock: (id: string, data: any) => request<any>(`/finance/stocks/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteStock: (id: string) => request<any>(`/finance/stocks/${id}`, { method: "DELETE" }),
+  getStockPrices: () => request<any>("/finance/stocks/prices"),
+  getDebts: () => request<any[]>("/finance/debts"),
+  createDebt: (data: any) => request<any>("/finance/debts", { method: "POST", body: JSON.stringify(data) }),
+  updateDebt: (id: string, data: any) => request<any>(`/finance/debts/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteDebt: (id: string) => request<any>(`/finance/debts/${id}`, { method: "DELETE" }),
+  getSpending: (params?: Record<string, string>) => { const qs = params ? "?" + new URLSearchParams(params).toString() : ""; return request<any>(`/finance/spending${qs}`); },
+
+  // Shopping
+  getShops: () => request<any[]>("/shopping/shops"),
+  createShop: (data: any) => request<any>("/shopping/shops", { method: "POST", body: JSON.stringify(data) }),
+  updateShop: (id: string, data: any) => request<any>(`/shopping/shops/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteShop: (id: string) => request<any>(`/shopping/shops/${id}`, { method: "DELETE" }),
+  getShoppingItems: (params?: Record<string, string>) => { const qs = params ? "?" + new URLSearchParams(params).toString() : ""; return request<any[]>(`/shopping/items${qs}`); },
+  createShoppingItem: (data: any) => request<any>("/shopping/items", { method: "POST", body: JSON.stringify(data) }),
+  updateShoppingItem: (id: string, data: any) => request<any>(`/shopping/items/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteShoppingItem: (id: string) => request<any>(`/shopping/items/${id}`, { method: "DELETE" }),
+  setItemStatus: (id: string, status: string) => request<any>(`/shopping/items/${id}/status`, { method: "POST", body: JSON.stringify({ status }) }),
+  getPriceAlerts: () => request<any[]>("/shopping/alerts"),
+  createPriceAlert: (data: any) => request<any>("/shopping/alerts", { method: "POST", body: JSON.stringify(data) }),
+  updatePriceAlert: (id: string, data: any) => request<any>(`/shopping/alerts/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deletePriceAlert: (id: string) => request<any>(`/shopping/alerts/${id}`, { method: "DELETE" }),
+  checkPrice: (id: string) => request<any>(`/shopping/alerts/${id}/check`, { method: "POST" }),
+  getPriceHistory: (id: string) => request<any[]>(`/shopping/alerts/${id}/history`),
+  getShoppingRules: () => request<any[]>("/shopping/rules"),
+  createShoppingRule: (data: any) => request<any>("/shopping/rules", { method: "POST", body: JSON.stringify(data) }),
+  updateShoppingRule: (id: string, data: any) => request<any>(`/shopping/rules/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteShoppingRule: (id: string) => request<any>(`/shopping/rules/${id}`, { method: "DELETE" }),
+  searchProducts: (query: string, marketplace?: string) => request<any>("/shopping/search", { method: "POST", body: JSON.stringify({ query, marketplace }) }),
+
+  // Travel
+  getTravelTrips: (params?: Record<string, string>) => { const qs = params ? "?" + new URLSearchParams(params).toString() : ""; return request<any[]>(`/travel/trips${qs}`); },
+  getTravelTrip: (id: string) => request<any>(`/travel/trips/${id}`),
+  createTravelTrip: (data: any) => request<any>("/travel/trips", { method: "POST", body: JSON.stringify(data) }),
+  updateTravelTrip: (id: string, data: any) => request<any>(`/travel/trips/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteTravelTrip: (id: string) => request<any>(`/travel/trips/${id}`, { method: "DELETE" }),
+  addTravelEvent: (tripId: string, data: any) => request<any>(`/travel/trips/${tripId}/events`, { method: "POST", body: JSON.stringify(data) }),
+  updateTravelEvent: (tripId: string, eventId: string, data: any) => request<any>(`/travel/trips/${tripId}/events/${eventId}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteTravelEvent: (tripId: string, eventId: string) => request<any>(`/travel/trips/${tripId}/events/${eventId}`, { method: "DELETE" }),
+  trackFlight: (tripId: string, eventId: string) => request<any>(`/travel/trips/${tripId}/events/${eventId}/track`, { method: "POST" }),
+  untrackFlight: (tripId: string, eventId: string) => request<any>(`/travel/trips/${tripId}/events/${eventId}/track`, { method: "DELETE" }),
+  checkFlight: (tripId: string, eventId: string) => request<any>(`/travel/trips/${tripId}/events/${eventId}/check`, { method: "POST" }),
+  ingestTravelEmails: () => request<any>("/travel/ingest", { method: "POST" }),
+  getTravelPOIs: (params?: Record<string, string>) => { const qs = params ? "?" + new URLSearchParams(params).toString() : ""; return request<any[]>(`/travel/pois${qs}`); },
+  createTravelPOI: (data: any) => request<any>("/travel/pois", { method: "POST", body: JSON.stringify(data) }),
+  updateTravelPOI: (id: string, data: any) => request<any>(`/travel/pois/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteTravelPOI: (id: string) => request<any>(`/travel/pois/${id}`, { method: "DELETE" }),
+  getTravelCalendar: (from: string, to: string) => request<any[]>(`/travel/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+  uploadTravelFile: async (file: File): Promise<any> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch("/api/travel/upload", { method: "POST", credentials: "include", body: form });
+    if (!res.ok) { const e = await res.json().catch(() => ({ error: res.statusText })); throw new Error(e.error || "Upload failed"); }
+    return res.json();
+  },
+
+  // Connection requests
+  getConnectionRequests: () => request<any[]>("/connections/requests"),
+  createConnectionRequest: (service: string, description: string) =>
+    request<any>("/connections/requests", { method: "POST", body: JSON.stringify({ service, description }) }),
+  reviewConnectionRequest: (id: string, status: "approved" | "denied", adminNote?: string) =>
+    request<any>(`/connections/requests/${id}`, { method: "PUT", body: JSON.stringify({ status, adminNote }) }),
+  deleteConnectionRequest: (id: string) => request<any>(`/connections/requests/${id}`, { method: "DELETE" }),
 };

@@ -1,5 +1,6 @@
 import { prisma } from "../db.js";
 import { log } from "../logger.js";
+import { checkSkillRateLimit, MAX_AGENTS_PER_USER } from "./guardrail.js";
 
 export interface SkillResult {
   success: boolean;
@@ -18,8 +19,9 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
     const agentId = args.agentId ? String(args.agentId) : null;
     const dueAt = args.dueAt ? new Date(String(args.dueAt)) : null;
 
+    const recurring = args.recurring ? String(args.recurring) : "";
     const ticket = await prisma.ticket.create({
-      data: { title, description, priority, category, status: "queued", agentId, output: "", dueAt, userId: userId || null },
+      data: { title, description, priority, category, status: "queued", agentId, output: "", dueAt, recurring, userId: userId || null },
     });
 
     await log("info", "skill:create_ticket", `Task created: "${title}" [${ticket.id}]`, { ticketId: ticket.id, priority });
@@ -65,7 +67,7 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
     };
   },
 
-  read_emails: async (args) => {
+  read_emails: async (args, _userId) => {
     const limit = Number(args.limit) || 10;
     const unreadOnly = args.unreadOnly !== false;
     const where: any = { direction: "inbound" };
@@ -94,9 +96,10 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
     }
   },
 
-  create_automation: async (args) => {
+  create_automation: async (args, userId) => {
     const automation = await prisma.automation.create({
       data: {
+        userId,
         what: String(args.what || ""), systems: String(args.systems || ""),
         frequency: String(args.frequency || ""), dataSource: String(args.dataSource || ""),
         delivery: String(args.delivery || ""), status: "pending",
@@ -152,7 +155,7 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
     if (!name) return { success: false, data: {}, message: "Agent name is required." };
 
     const count = await prisma.agent.count({ where: { userId } });
-    if (count >= 20) return { success: false, data: {}, message: "Maximum 20 agents per user." };
+    if (count >= MAX_AGENTS_PER_USER) return { success: false, data: {}, message: `Maximum ${MAX_AGENTS_PER_USER} agents per user. Log a support ticket to request an increase.` };
 
     const existing = await prisma.agent.findFirst({ where: { name, userId } });
     if (existing) return { success: false, data: {}, message: `Agent "${name}" already exists.` };
@@ -183,6 +186,419 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
     return { success: true, data: { agentId, enabled }, message: `Agent "${agent.name}" ${enabled ? "enabled" : "disabled"}.` };
   },
 
+  send_alert: async (args, userId) => {
+    const message = String(args.message || "");
+    if (!message) return { success: false, data: {}, message: "message is required." };
+    const { sendAlert } = await import("./alerts.js");
+    const result = await sendAlert(userId, message);
+    const sent = result.telegram || result.sms;
+    return {
+      success: sent,
+      data: result,
+      message: sent
+        ? `Alert sent (Telegram: ${result.telegram}, SMS: ${result.sms}).`
+        : "No alert channels configured. Set up Telegram or SMS in Settings → Profile.",
+    };
+  },
+
+  get_net_worth: async (_args, userId) => {
+    const [accounts, assets, stocks, debts] = await Promise.all([
+      prisma.bankAccount.findMany({ where: { userId } }),
+      prisma.asset.findMany({ where: { userId } }),
+      prisma.stockHolding.findMany({ where: { userId } }),
+      prisma.debt.findMany({ where: { userId } }),
+    ]);
+    const cash = accounts.reduce((s, a) => s + a.balance, 0);
+    const assetVal = assets.reduce((s, a) => s + a.value, 0);
+    const stockCost = stocks.reduce((s, h) => s + h.shares * h.avgCost, 0);
+    const totalAssets = cash + assetVal + stockCost;
+    const totalLiabilities = debts.reduce((s, d) => s + d.balance, 0);
+    const netWorth = totalAssets - totalLiabilities;
+    const fmt = (n: number) => n.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return {
+      success: true,
+      data: { netWorth, totalAssets, totalLiabilities, cash, assetVal, stockCost },
+      message: `Net worth: ${fmt(netWorth)}\nTotal assets: ${fmt(totalAssets)} (Cash: ${fmt(cash)}, Investments: ${fmt(stockCost)}, Other assets: ${fmt(assetVal)})\nTotal liabilities: ${fmt(totalLiabilities)}`,
+    };
+  },
+
+  get_portfolio_value: async (_args, userId) => {
+    const holdings = await prisma.stockHolding.findMany({ where: { userId } });
+    if (holdings.length === 0) return { success: true, data: {}, message: "No stock or crypto holdings found." };
+    const { fetchQuotes } = await import("./stock-prices.js");
+    const tickers = [...new Set(holdings.map(h => h.ticker))];
+    const quotes = await fetchQuotes(tickers);
+    let totalValue = 0, totalCost = 0;
+    const lines: string[] = [];
+    for (const h of holdings) {
+      const q = quotes[h.ticker];
+      const currentPrice = q?.price || h.avgCost;
+      const value = h.shares * currentPrice;
+      const cost = h.shares * h.avgCost;
+      const pnl = value - cost;
+      totalValue += value;
+      totalCost += cost;
+      const pnlStr = pnl >= 0 ? `+${pnl.toFixed(2)}` : pnl.toFixed(2);
+      lines.push(`${h.ticker}: ${h.shares} shares @ ${currentPrice.toFixed(2)} = ${value.toFixed(2)} ${h.currency} (P&L: ${pnlStr})`);
+    }
+    const totalPnl = totalValue - totalCost;
+    return {
+      success: true,
+      data: { totalValue, totalCost, totalPnl, holdings: lines },
+      message: `Portfolio value: ${totalValue.toFixed(2)}\nTotal P&L: ${totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)}\n\n${lines.join("\n")}`,
+    };
+  },
+
+  get_spending_summary: async (args, userId) => {
+    const months = parseInt(String(args.months || "1"));
+    const from = new Date();
+    from.setMonth(from.getMonth() - months + 1);
+    from.setDate(1); from.setHours(0, 0, 0, 0);
+    const txs = await prisma.transaction.findMany({
+      where: { userId, amount: { lt: 0 }, date: { gte: from } },
+    });
+    const byCategory: Record<string, number> = {};
+    for (const tx of txs) {
+      byCategory[tx.category] = (byCategory[tx.category] || 0) + Math.abs(tx.amount);
+    }
+    const total = Object.values(byCategory).reduce((s, v) => s + v, 0);
+    const sorted = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
+    const lines = sorted.map(([cat, amt]) => `  ${cat}: ${amt.toFixed(2)} (${((amt/total)*100).toFixed(1)}%)`);
+    return {
+      success: true,
+      data: { byCategory, total },
+      message: `Spending last ${months} month(s): ${total.toFixed(2)}\n${lines.join("\n")}`,
+    };
+  },
+
+  add_asset: async (args, userId) => {
+    const name = String(args.name || "");
+    const type = String(args.type || "other");
+    const value = parseFloat(String(args.value || "0"));
+    if (!name) return { success: false, data: {}, message: "Asset name is required." };
+    const asset = await prisma.asset.create({
+      data: { userId, name, type, value, currency: String(args.currency || "EUR"), purchasePrice: parseFloat(String(args.purchasePrice || "0")), notes: String(args.notes || "") },
+    });
+    return { success: true, data: { assetId: asset.id }, message: `Asset "${name}" (${type}) added with value ${value}.` };
+  },
+
+  add_debt: async (args, userId) => {
+    const name = String(args.name || "");
+    const balance = parseFloat(String(args.balance || "0"));
+    if (!name) return { success: false, data: {}, message: "Debt name is required." };
+    const debt = await prisma.debt.create({
+      data: {
+        userId, name, type: String(args.type || "other"), balance,
+        originalAmount: parseFloat(String(args.originalAmount || "0")) || balance,
+        interestRate: parseFloat(String(args.interestRate || "0")),
+        monthlyPayment: parseFloat(String(args.monthlyPayment || "0")),
+        currency: String(args.currency || "EUR"),
+        notes: String(args.notes || ""),
+      },
+    });
+    return { success: true, data: { debtId: debt.id }, message: `Debt "${name}" added: ${balance} at ${debt.interestRate}% APR.` };
+  },
+
+  add_to_shopping_list: async (args, userId) => {
+    const item = await prisma.shoppingItem.create({
+      data: {
+        userId,
+        shopId: args.shopId ? String(args.shopId) : null,
+        name: String(args.name || ""),
+        quantity: String(args.quantity || "1"),
+        category: String(args.category || ""),
+        notes: String(args.notes || ""),
+        priority: String(args.priority || "normal"),
+        addedBy: "agent",
+      },
+      include: { shop: { select: { name: true } } },
+    });
+    return {
+      success: true,
+      data: { id: item.id, name: item.name, quantity: item.quantity, shop: (item as any).shop?.name || "General" },
+      message: `Added "${item.name}" (qty: ${item.quantity}) to ${(item as any).shop?.name || "General"} shopping list.`,
+    };
+  },
+
+  get_shopping_list: async (args, userId) => {
+    const where: any = { userId, status: String(args.status || "pending") };
+    if (args.shopId) where.shopId = String(args.shopId);
+    const items = await prisma.shoppingItem.findMany({
+      where,
+      include: { shop: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+    const mapped = items.map((i) => ({
+      id: i.id, name: i.name, quantity: i.quantity,
+      shop: (i as any).shop?.name || "General", category: i.category, priority: i.priority,
+    }));
+    return {
+      success: true,
+      data: { items: mapped },
+      message: items.length === 0
+        ? "Shopping list is empty."
+        : `Shopping list (${items.length} item${items.length > 1 ? "s" : ""}):\n${mapped.map((i) => `  - ${i.name} x${i.quantity} [${i.shop}]`).join("\n")}`,
+    };
+  },
+
+  create_price_alert: async (args, userId) => {
+    const alert = await prisma.priceAlert.create({
+      data: {
+        userId,
+        productName: String(args.productName || ""),
+        productUrl: String(args.productUrl || ""),
+        targetPrice: parseFloat(String(args.targetPrice || "0")),
+      },
+    });
+    return {
+      success: true,
+      data: { alertId: alert.id },
+      message: `Price alert set for "${alert.productName}" at ${alert.targetPrice}. I'll notify you when the price drops.`,
+    };
+  },
+
+  // ── Travel skills ──────────────────────────────────────────────────────────
+
+  get_upcoming_trip: async (_args, userId) => {
+    const trip = await prisma.trip.findFirst({
+      where: { userId, startDate: { gte: new Date() } },
+      orderBy: { startDate: "asc" },
+      include: { events: { orderBy: { startTime: "asc" } } },
+    });
+    if (!trip) return { success: true, data: {}, message: "No upcoming trips planned." };
+    const deptFlight = trip.events.find((e: any) => e.type === "flight" && e.fromAirport === trip.homeAirport);
+    const retFlight = trip.events.find((e: any) => e.type === "flight" && e.toAirport === trip.homeAirport);
+    const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return {
+      success: true,
+      data: { tripId: trip.id, name: trip.name, destination: trip.destination, startDate: trip.startDate, endDate: trip.endDate },
+      message: `Next trip: "${trip.name}" to ${trip.destination}\n` +
+        `Dates: ${fmt(trip.startDate)} – ${fmt(trip.endDate)}\n` +
+        (deptFlight ? `Outbound: ${deptFlight.airline} ${deptFlight.flightNumber} on ${fmt(new Date(deptFlight.startTime))} | Status: ${deptFlight.flightStatus}\n` : "") +
+        (retFlight ? `Return: ${retFlight.airline} ${retFlight.flightNumber} on ${fmt(new Date(retFlight.startTime))}\n` : "") +
+        `${trip.events.length} event(s) in itinerary`,
+    };
+  },
+
+  create_trip: async (args, userId) => {
+    const name = String(args.name || "");
+    if (!name) return { success: false, data: {}, message: "Trip name is required." };
+    const startDate = new Date(String(args.startDate || new Date().toISOString()));
+    const endDate = new Date(String(args.endDate || args.startDate || new Date().toISOString()));
+    if (isNaN(startDate.getTime())) return { success: false, data: {}, message: "Invalid startDate. Use ISO format (YYYY-MM-DD)." };
+    const trip = await prisma.trip.create({
+      data: {
+        userId,
+        name,
+        destination: String(args.destination || ""),
+        homeAirport: String(args.homeAirport || "SFO"),
+        startDate,
+        endDate: isNaN(endDate.getTime()) ? startDate : endDate,
+        notes: String(args.notes || ""),
+      },
+    });
+    const fmt = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return {
+      success: true,
+      data: { tripId: trip.id },
+      message: `Trip "${name}" to ${trip.destination} created (${fmt(trip.startDate)} – ${fmt(trip.endDate)}). Add events with add_trip_event.`,
+    };
+  },
+
+  add_trip_event: async (args, userId) => {
+    let tripId = String(args.tripId || "");
+    if (!tripId) {
+      const tripName = String(args.tripName || "");
+      if (!tripName) return { success: false, data: {}, message: "Provide tripId or tripName to identify the trip." };
+      const trip = await prisma.trip.findFirst({ where: { userId, name: { contains: tripName } }, orderBy: { startDate: "asc" } });
+      if (!trip) return { success: false, data: {}, message: `No trip found matching "${tripName}". Create the trip first.` };
+      tripId = trip.id;
+    }
+    const type = String(args.type || "activity");
+    const title = String(args.title || "");
+    if (!title) return { success: false, data: {}, message: "Event title is required." };
+    const startTime = new Date(String(args.startTime || new Date().toISOString()));
+    if (isNaN(startTime.getTime())) return { success: false, data: {}, message: "Invalid startTime. Use ISO format." };
+    const event = await prisma.tripEvent.create({
+      data: {
+        tripId, type, title, startTime,
+        endTime: args.endTime ? new Date(String(args.endTime)) : null,
+        location: String(args.location || ""),
+        address: String(args.address || ""),
+        bookingRef: String(args.bookingRef || ""),
+        confirmationNum: String(args.confirmationNum || ""),
+        flightNumber: String(args.flightNumber || ""),
+        airline: String(args.airline || ""),
+        fromAirport: String(args.fromAirport || ""),
+        toAirport: String(args.toAirport || ""),
+        notes: String(args.notes || ""),
+      },
+    });
+    const typeLabel = { flight: "Flight", hotel: "Hotel", activity: "Activity", transport: "Transport", car_rental: "Car rental" }[type] || type;
+    return {
+      success: true,
+      data: { eventId: event.id, tripId },
+      message: `${typeLabel} "${title}" added to trip on ${startTime.toLocaleDateString("en-US", { month: "short", day: "numeric" })}.`,
+    };
+  },
+
+  ingest_travel_emails: async (_args, userId) => {
+    const { parseEmailsForTrips } = await import("./trip-email-parser.js");
+    const result = await parseEmailsForTrips(userId);
+    return {
+      success: true,
+      data: result,
+      message: result.tripsCreated === 0 && result.eventsCreated === 0
+        ? "Email scan complete — no new travel bookings found. Make sure IMAP is configured in Settings."
+        : `Email scan complete: ${result.tripsCreated} trip(s) created, ${result.eventsCreated} event(s) added${result.skipped > 0 ? `, ${result.skipped} skipped (already exist or not travel)` : ""}.`,
+    };
+  },
+
+  check_flight_status: async (args, userId) => {
+    let eventId = String(args.eventId || "");
+    if (!eventId && args.flightNumber) {
+      const flight = await prisma.tripEvent.findFirst({
+        where: { trip: { userId }, flightNumber: String(args.flightNumber), startTime: { gte: new Date() } },
+        orderBy: { startTime: "asc" },
+      });
+      if (flight) eventId = flight.id;
+    }
+    if (!eventId) return { success: false, data: {}, message: "Provide eventId or flightNumber to check status. Make sure the flight hasn't already departed." };
+    const { checkFlightStatus } = await import("./flight-tracker.js");
+    const result = await checkFlightStatus(eventId, userId);
+    const emoji = { "on-time": "✅", "delayed": "⚠️", "cancelled": "❌", "landed": "🛬", "scheduled": "🛫" }[result.status] || "🛫";
+    return {
+      success: true,
+      data: result,
+      message: `${emoji} Status: ${result.status}` +
+        (result.delayMinutes > 0 ? ` (+${result.delayMinutes} min delay)` : "") +
+        (result.gate ? ` | Gate ${result.gate}` : "") +
+        (result.terminal ? `, Terminal ${result.terminal}` : "") +
+        (result.changed ? " ← status updated" : ""),
+    };
+  },
+
+  add_poi: async (args, userId) => {
+    const name = String(args.name || "");
+    if (!name) return { success: false, data: {}, message: "Place name is required." };
+    const poi = await prisma.pOI.create({
+      data: {
+        userId,
+        name,
+        address: String(args.address || ""),
+        city: String(args.city || ""),
+        country: String(args.country || ""),
+        category: String(args.category || "other"),
+        notes: String(args.notes || ""),
+        visitedAt: args.visitedAt ? new Date(String(args.visitedAt)) : new Date(),
+      },
+    });
+    const where = [poi.city, poi.country].filter(Boolean).join(", ");
+    return {
+      success: true,
+      data: { poiId: poi.id },
+      message: `"${name}"${where ? ` in ${where}` : ""} saved to your travel memory.`,
+    };
+  },
+
+  get_weather: async (_args, userId) => {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { city: true, timezone: true } });
+    if (!user?.city) {
+      return { success: false, data: {}, message: "No city set. Add your city in Settings → Profile so I can fetch weather." };
+    }
+    const GEOCODE = "https://geocoding-api.open-meteo.com/v1/search";
+    const FORECAST = "https://api.open-meteo.com/v1/forecast";
+    try {
+      const geoRes = await fetch(`${GEOCODE}?name=${encodeURIComponent(user.city)}&count=1&language=en`);
+      const geo = await geoRes.json() as any;
+      if (!geo.results?.length) return { success: false, data: {}, message: `City "${user.city}" not found. Update it in Settings → Profile.` };
+      const { latitude, longitude, name, country } = geo.results[0];
+      const tz = encodeURIComponent(user.timezone || "auto");
+      const wxRes = await fetch(
+        `${FORECAST}?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=${tz}&forecast_days=3`
+      );
+      const wx = await wxRes.json() as any;
+      const CODES: Record<number, string> = {
+        0: "Clear ☀️", 1: "Mostly clear 🌤", 2: "Partly cloudy ⛅", 3: "Overcast ☁️",
+        45: "Foggy 🌫", 51: "Light drizzle 🌦", 53: "Drizzle 🌧", 61: "Light rain 🌧",
+        63: "Rain 🌧", 65: "Heavy rain 🌧", 71: "Light snow 🌨", 73: "Snow ❄️",
+        75: "Heavy snow ❄️", 80: "Showers 🌦", 95: "Thunderstorm ⛈",
+      };
+      const cond = CODES[wx.current?.weather_code] ?? "Unknown";
+      const temp = Math.round(wx.current?.temperature_2m ?? 0);
+      const wind = Math.round(wx.current?.wind_speed_10m ?? 0);
+      const forecast = (wx.daily?.time ?? []).map((d: string, i: number) => ({
+        date: d,
+        high: Math.round(wx.daily.temperature_2m_max[i]),
+        low: Math.round(wx.daily.temperature_2m_min[i]),
+        condition: CODES[wx.daily.weather_code[i]] ?? "Unknown",
+      }));
+      const forecastLines = forecast.slice(0, 3).map((f: any) =>
+        `  ${new Date(f.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}: ${f.condition}, ${f.low}–${f.high}°C`
+      ).join("\n");
+      return {
+        success: true,
+        data: { city: name, country, temp, condition: cond, wind, forecast },
+        message: `${name}, ${country}: ${cond}, ${temp}°C | Wind: ${wind} km/h\n\n3-day forecast:\n${forecastLines}`,
+      };
+    } catch (e: any) {
+      return { success: false, data: {}, message: `Weather unavailable: ${e.message}` };
+    }
+  },
+
+  create_shopping_rule: async (args, userId) => {
+    const itemName = String(args.itemName || "");
+    if (!itemName) return { success: false, data: {}, message: "itemName is required." };
+    const trigger = String(args.trigger || "weekly");
+    if (!["daily", "weekly", "monthly"].includes(trigger)) {
+      return { success: false, data: {}, message: "trigger must be daily, weekly, or monthly." };
+    }
+    // Check for duplicate
+    const existing = await prisma.shoppingRule.findFirst({ where: { userId, itemName, trigger } });
+    if (existing) return { success: false, data: {}, message: `A ${trigger} rule for "${itemName}" already exists.` };
+
+    const rule = await prisma.shoppingRule.create({
+      data: {
+        userId,
+        itemName,
+        quantity: String(args.quantity || "1"),
+        category: String(args.category || ""),
+        trigger,
+        shopId: args.shopId ? String(args.shopId) : null,
+      },
+    });
+    return {
+      success: true,
+      data: { ruleId: rule.id },
+      message: `Auto-buy rule set: "${itemName}" (qty: ${rule.quantity}) will be added to your shopping list ${trigger}.`,
+    };
+  },
+
+  get_poi_memory: async (args, userId) => {
+    const where: any = { userId };
+    if (args.country) where.country = { contains: String(args.country) };
+    if (args.city) where.city = { contains: String(args.city) };
+    if (args.category) where.category = String(args.category);
+    const pois = await prisma.pOI.findMany({ where, orderBy: { visitedAt: "desc" }, take: 30 });
+    if (pois.length === 0) {
+      const hint = args.country || args.city ? ` in ${args.city || ""}${args.city && args.country ? ", " : ""}${args.country || ""}` : "";
+      return { success: true, data: { pois: [] }, message: `No places in memory${hint}. Use add_poi to save visited places.` };
+    }
+    const grouped: Record<string, string[]> = {};
+    for (const p of pois) {
+      const key = [p.city, p.country].filter(Boolean).join(", ") || "Unknown";
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(`${p.name} (${p.category})`);
+    }
+    const lines = Object.entries(grouped).map(([loc, places]) => `  ${loc}: ${places.join(", ")}`);
+    return {
+      success: true,
+      data: { pois: pois.map((p) => ({ id: p.id, name: p.name, city: p.city, country: p.country, category: p.category })) },
+      message: `Places visited (${pois.length}):\n${lines.join("\n")}`,
+    };
+  },
+
   list_tickets: async (args, userId) => {
     const status = args.status ? String(args.status) : undefined;
     const where: any = { userId };
@@ -200,6 +616,15 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
 };
 
 export async function executeSkill(skillName: string, argsJson: string, userId: string): Promise<SkillResult> {
+  // Rate limit: 60 skill calls per user per minute
+  if (!checkSkillRateLimit(userId)) {
+    return {
+      success: false,
+      data: { code: "GUARDRAIL", canLogTicket: true },
+      message: "Rate limit exceeded. You have used too many skills in the last minute. Please wait and try again.",
+    };
+  }
+
   let args: Record<string, unknown>;
   try {
     args = JSON.parse(argsJson || "{}");

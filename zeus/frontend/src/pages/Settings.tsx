@@ -3,22 +3,23 @@ import { Link } from "react-router-dom";
 import { api } from "../api";
 import { Card, PageTitle, Btn, Input, Label, Badge, EmptyState } from "../components/ui";
 
-type Tab = "connections" | "agents" | "skills" | "logs" | "access" | "family" | "update";
+type Tab = "connections" | "platform" | "agents" | "skills" | "logs" | "access" | "family" | "update";
 
 interface Props { profile?: any; }
 
 export default function Settings({ profile }: Props) {
   const isAdmin = profile?.role === "admin" || profile?.role === "superuser";
-  const [tab, setTab] = useState<Tab>("connections");
+  const [tab, setTab] = useState<Tab>(isAdmin ? "connections" : "access");
 
   const tabs: { key: Tab; label: string; adminOnly?: boolean }[] = [
-    { key: "connections", label: "Connections" },
+    { key: "connections", label: "Connections", adminOnly: true },
+    { key: "platform", label: "Platform" },
     { key: "agents", label: "Agents" },
-    { key: "skills", label: "Skills" },
-    { key: "logs", label: "Logs" },
+    { key: "skills", label: "Skills", adminOnly: true },
+    { key: "logs", label: "Logs", adminOnly: true },
     { key: "access", label: "Profile" },
     { key: "family", label: "Family", adminOnly: true },
-    { key: "update", label: "Update" },
+    { key: "update", label: "Update", adminOnly: true },
   ].filter((t) => !t.adminOnly || isAdmin);
 
   return (
@@ -36,13 +37,14 @@ export default function Settings({ profile }: Props) {
         ))}
       </div>
 
-      {tab === "connections" && <ConnectionsTab />}
+      {tab === "connections" && isAdmin && <ConnectionsTab />}
+      {tab === "platform" && <PlatformTab isAdmin={isAdmin} />}
       {tab === "agents" && <AgentsTab />}
-      {tab === "skills" && <SkillsTab />}
-      {tab === "logs" && <LogsTab />}
+      {tab === "skills" && isAdmin && <SkillsTab />}
+      {tab === "logs" && isAdmin && <LogsTab />}
       {tab === "access" && <AccessTab profile={profile} />}
       {tab === "family" && isAdmin && <FamilyTab profile={profile} />}
-      {tab === "update" && <UpdateTab />}
+      {tab === "update" && isAdmin && <UpdateTab />}
     </div>
   );
 }
@@ -51,16 +53,13 @@ function ConnectionsTab() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("gpt-4o-mini");
-  const [tgToken, setTgToken] = useState("");
+  const [flightApiKey, setFlightApiKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
   const [testing, setTesting] = useState(false);
-  const [tgStatus, setTgStatus] = useState<any>({ running: false });
-  const [tgAction, setTgAction] = useState(false);
 
   useEffect(() => {
     api.getSettings().then((s) => { setSettings(s); if (s.default_model) setModel(s.default_model); });
-    api.telegramStatus().then(setTgStatus);
   }, []);
 
   const save = async () => {
@@ -68,9 +67,9 @@ function ConnectionsTab() {
     try {
       const d: Record<string, string> = { default_model: model };
       if (apiKey) d.openai_api_key = apiKey;
-      if (tgToken) d.telegram_bot_token = tgToken;
+      if (flightApiKey) d.flight_api_key = flightApiKey;
       await api.updateSettings(d);
-      setApiKey(""); setTgToken("");
+      setApiKey(""); setFlightApiKey("");
       setSettings(await api.getSettings());
     } finally { setSaving(false); }
   };
@@ -94,22 +93,28 @@ function ConnectionsTab() {
       </Card>
 
       <Card>
-        <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-primary)" }}>Telegram</h3>
-        <div className="space-y-3">
-          <div><Label>Bot Token</Label><Input type="password" value={tgToken} onChange={(e) => setTgToken(e.target.value)} placeholder={settings.telegram_bot_token || "From @BotFather"} /></div>
-          <div className="flex items-center gap-3">
-            <Btn onClick={async () => { setTgAction(true); try { if (tgStatus.running) await api.telegramStop(); else await api.telegramStart(); setTgStatus(await api.telegramStatus()); } finally { setTgAction(false); } }} disabled={tgAction}>{tgStatus.running ? "Stop" : "Start Bot"}</Btn>
-            <span className="flex items-center gap-1.5"><span className={`w-1.5 h-1.5 rounded-full ${tgStatus.running ? "bg-green-500" : "bg-gray-600"}`} /><span className="text-xs" style={{ color: "var(--text-muted)" }}>{tgStatus.running ? `@${tgStatus.username}` : "Off"}</span></span>
-          </div>
-        </div>
-      </Card>
-
-      <Card>
         <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-primary)" }}>Email</h3>
         <EmailFields settings={settings} />
       </Card>
 
+      <Card>
+        <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-primary)" }}>SMS Alerts (Twilio)</h3>
+        <div className="space-y-2">
+          <SmsFields settings={settings} onSave={async (d) => { await api.updateSettings(d); setSettings(await api.getSettings()); }} />
+        </div>
+      </Card>
+
+      <Card>
+        <h3 className="text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>Flight Tracking (AeroAPI)</h3>
+        <p className="text-[10px] mb-3" style={{ color: "var(--text-muted)" }}>
+          Get your API key at <span style={{ color: "var(--accent)" }}>flightaware.com/aeroapi</span>. Enables real-time flight delay and cancellation alerts.
+        </p>
+        <div><Label>API Key</Label><Input type="password" value={flightApiKey} onChange={(e) => setFlightApiKey(e.target.value)} placeholder={settings.flight_api_key || "Enter AeroAPI key..."} /></div>
+      </Card>
+
       <Btn variant="primary" onClick={save} disabled={saving}>{saving ? "..." : "Save All"}</Btn>
+
+      <ConnectionReviewPanel />
     </div>
   );
 }
@@ -152,6 +157,263 @@ function EmailFields({ settings }: { settings: Record<string, string> }) {
         <Btn onClick={async () => { await api.updateSettings(form); }}>Save Email Settings</Btn>
       </div>
     </div>
+  );
+}
+
+function SmsFields({ settings, onSave }: { settings: Record<string, string>; onSave: (d: Record<string, string>) => void }) {
+  const [form, setForm] = useState({
+    twilio_account_sid: settings.twilio_account_sid || "",
+    twilio_auth_token: settings.twilio_auth_token || "",
+    twilio_from: settings.twilio_from || "",
+  });
+
+  useEffect(() => {
+    setForm({
+      twilio_account_sid: settings.twilio_account_sid || "",
+      twilio_auth_token: settings.twilio_auth_token || "",
+      twilio_from: settings.twilio_from || "",
+    });
+  }, [settings]);
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
+        Get credentials at <span style={{ color: "var(--accent)" }}>twilio.com</span>. Each user sets their phone number in Profile.
+      </p>
+      <div><Label>Account SID</Label><Input value={form.twilio_account_sid} onChange={(e) => setForm({ ...form, twilio_account_sid: e.target.value })} placeholder="ACxxxxxxx" /></div>
+      <div><Label>Auth Token</Label><Input type="password" value={form.twilio_auth_token} onChange={(e) => setForm({ ...form, twilio_auth_token: e.target.value })} placeholder="Auth token" /></div>
+      <div><Label>From number</Label><Input value={form.twilio_from} onChange={(e) => setForm({ ...form, twilio_from: e.target.value })} placeholder="+1234567890" /></div>
+      <Btn onClick={() => onSave(form)}>Save SMS Settings</Btn>
+    </div>
+  );
+}
+
+// ── Platform Status Tab (all users) ─────────────────────────────────────────
+function PlatformTab({ isAdmin }: { isAdmin: boolean }) {
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [usage, setUsage] = useState<any>(null);
+
+  useEffect(() => {
+    api.getSettings().then(setSettings).catch(() => {});
+    api.getUsage().then(setUsage).catch(() => {});
+  }, []);
+
+  const integrations = [
+    { key: "_status_openai",   label: "AI (OpenAI)",        icon: "🤖", desc: "Powers all assistant conversations and agent tasks" },
+    { key: "_status_telegram", label: "Telegram",           icon: "📱", desc: "Push notifications — each user configures their own bot in Profile" },
+    { key: "_status_email",    label: "Email (SMTP/IMAP)",  icon: "✉️",  desc: "Email reading and sending" },
+    { key: "_status_sms",      label: "SMS (Twilio)",       icon: "💬", desc: "SMS alerts via Twilio" },
+  ];
+
+  const on  = (k: string) => settings[k] === "1";
+  const fmtCost = (n: number) => "$" + (n || 0).toFixed(4);
+
+  return (
+    <div className="max-w-xl space-y-4">
+      {/* Integration status */}
+      <Card>
+        <h3 className="text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>Platform integrations</h3>
+        <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+          {isAdmin
+            ? "Manage credentials in the Connections tab."
+            : "Configured by your admin. Contact them to enable or change integrations."}
+        </p>
+        <div className="space-y-2">
+          {integrations.map(({ key, label, icon, desc }) => (
+            <div key={key} className="flex items-center gap-3 rounded-lg px-3 py-2.5"
+              style={{ background: "var(--bg-input)", border: `1px solid ${on(key) ? "rgba(52,211,153,0.25)" : "var(--border)"}` }}>
+              <span className="text-base shrink-0">{icon}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>{label}</span>
+                  <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full"
+                    style={{ background: on(key) ? "rgba(52,211,153,0.15)" : "rgba(107,114,128,0.15)", color: on(key) ? "#34d399" : "#6b7280" }}>
+                    {on(key) ? "Active" : "Not configured"}
+                  </span>
+                </div>
+                <p className="text-[10px] mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Usage summary */}
+      {usage && (
+        <Card>
+          <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-primary)" }}>My AI usage this month</h3>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <p className="text-lg font-semibold" style={{ color: "var(--accent)" }}>{(usage.totalTokens || 0).toLocaleString()}</p>
+              <p className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>Tokens used</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>{usage.requestCount || 0}</p>
+              <p className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>Requests</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>{fmtCost(usage.estimatedCost)}</p>
+              <p className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>Est. cost</p>
+            </div>
+          </div>
+          {usage.limit && (
+            <div className="mt-3">
+              <div className="flex justify-between text-[10px] mb-1" style={{ color: "var(--text-muted)" }}>
+                <span>Monthly budget</span>
+                <span>{fmtCost(usage.estimatedCost)} / {fmtCost(usage.limit)}</span>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-input)" }}>
+                <div className="h-full rounded-full transition-all"
+                  style={{ width: `${Math.min(100, (usage.estimatedCost / usage.limit) * 100)}%`, background: "var(--accent)" }} />
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Admin shortcut */}
+      {isAdmin && (
+        <div className="rounded-lg p-3 flex items-center gap-3" style={{ background: "var(--accent-bg)", border: "1px solid var(--accent)" }}>
+          <span className="text-base">🔑</span>
+          <div className="flex-1">
+            <p className="text-xs font-medium" style={{ color: "var(--accent)" }}>You are the admin</p>
+            <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>API keys and integrations are managed in the Connections tab.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Non-admin: request a new external connection */}
+      {!isAdmin && <ConnectionRequestPanel />}
+    </div>
+  );
+}
+
+// ── Connection request panel (non-admin users) ───────────────────────────────
+function ConnectionRequestPanel() {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [service, setService] = useState("");
+  const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const load = () => api.getConnectionRequests().then(setRequests).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const submit = async () => {
+    if (!service.trim()) return;
+    setSubmitting(true);
+    try {
+      await api.createConnectionRequest(service, description);
+      setService(""); setDescription("");
+      setMsg("Request submitted — an admin will review it.");
+      load();
+    } catch (e: any) {
+      setMsg(e.message);
+    } finally { setSubmitting(false); }
+  };
+
+  const statusColor = (s: string) => s === "approved" ? "#4ade80" : s === "denied" ? "#f87171" : "#fbbf24";
+  const statusIcon  = (s: string) => s === "approved" ? "✅" : s === "denied" ? "❌" : "⏳";
+
+  return (
+    <Card>
+      <h3 className="text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>Request external integration</h3>
+      <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
+        Need to connect a service not listed above? Submit a request and your admin will review it.
+        New external connections require approval to keep the system secure.
+      </p>
+
+      {requests.length > 0 && (
+        <div className="space-y-1.5 mb-3">
+          {requests.map((r) => (
+            <div key={r.id} className="flex items-center gap-2 text-xs rounded-md px-2.5 py-2"
+              style={{ background: "var(--bg-input)", border: "1px solid var(--border)" }}>
+              <span>{statusIcon(r.status)}</span>
+              <span className="flex-1 font-medium" style={{ color: "var(--text-primary)" }}>{r.service}</span>
+              <span style={{ color: statusColor(r.status) }}>{r.status}</span>
+              {r.status === "pending" && (
+                <button onClick={async () => { await api.deleteConnectionRequest(r.id); load(); }}
+                  className="text-[10px] px-1.5 py-0.5 rounded" style={{ color: "var(--text-muted)", background: "var(--bg-card)" }}>
+                  Cancel
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Input placeholder="Service name (e.g. Slack, Zapier, Google Sheets)" value={service} onChange={(e) => setService(e.target.value)} />
+        <Input placeholder="Why do you need it? (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
+        {msg && <p className="text-xs" style={{ color: msg.startsWith("Request") ? "#4ade80" : "#f87171" }}>{msg}</p>}
+        <Btn onClick={submit} disabled={submitting || !service.trim()}>{submitting ? "Submitting…" : "Submit request"}</Btn>
+      </div>
+    </Card>
+  );
+}
+
+// ── Admin: connection request review ────────────────────────────────────────
+function ConnectionReviewPanel() {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [adminNote, setAdminNote] = useState<Record<string, string>>({});
+
+  const load = () => api.getConnectionRequests().then(setRequests).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const pending = requests.filter((r) => r.status === "pending");
+  const reviewed = requests.filter((r) => r.status !== "pending");
+
+  const review = async (id: string, status: "approved" | "denied") => {
+    await api.reviewConnectionRequest(id, status, adminNote[id] || "");
+    setAdminNote((n) => { const c = {...n}; delete c[id]; return c; });
+    load();
+  };
+
+  const statusColor = (s: string) => s === "approved" ? "#4ade80" : s === "denied" ? "#f87171" : "#fbbf24";
+
+  if (requests.length === 0) return (
+    <Card>
+      <h3 className="text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>Connection requests</h3>
+      <p className="text-xs" style={{ color: "var(--text-muted)" }}>No pending requests from users.</p>
+    </Card>
+  );
+
+  return (
+    <Card>
+      <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-primary)" }}>
+        Connection requests {pending.length > 0 && <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(251,191,36,0.2)", color: "#fbbf24" }}>{pending.length} pending</span>}
+      </h3>
+
+      <div className="space-y-3">
+        {pending.map((r) => (
+          <div key={r.id} className="rounded-lg p-3 space-y-2" style={{ background: "var(--bg-input)", border: "1px solid rgba(251,191,36,0.3)" }}>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>{r.service}</p>
+                <p className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+                  From: {r.user?.name} · {new Date(r.createdAt).toLocaleDateString()}
+                </p>
+                {r.description && <p className="text-[10px] mt-1 italic" style={{ color: "var(--text-muted)" }}>{r.description}</p>}
+              </div>
+            </div>
+            <Input placeholder="Admin note (optional, shown to user)" value={adminNote[r.id] || ""}
+              onChange={(e) => setAdminNote((n) => ({ ...n, [r.id]: e.target.value }))} />
+            <div className="flex gap-2">
+              <Btn variant="primary" onClick={() => review(r.id, "approved")}>Approve</Btn>
+              <Btn variant="ghost" onClick={() => review(r.id, "denied")}>Deny</Btn>
+            </div>
+          </div>
+        ))}
+
+        {reviewed.map((r) => (
+          <div key={r.id} className="flex items-center gap-2 text-xs px-2.5 py-2 rounded-md"
+            style={{ background: "var(--bg-input)", border: "1px solid var(--border)" }}>
+            <span className="flex-1" style={{ color: "var(--text-muted)" }}>{r.service} — {r.user?.name}</span>
+            <span style={{ color: statusColor(r.status) }}>{r.status}</span>
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 
@@ -295,6 +557,10 @@ function AccessTab({ profile }: { profile?: any }) {
   const [timezone, setTimezone] = useState(profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [assistantName, setAssistantName] = useState(profile?.assistantName || "");
   const [personality, setPersonality] = useState(profile?.assistantPersonality || "");
+  const [phone, setPhone] = useState(profile?.phone || "");
+  const [tgChatId, setTgChatId] = useState(profile?.telegramChatId || "");
+  const [alertResult, setAlertResult] = useState<any>(null);
+  const [testingAlert, setTestingAlert] = useState(false);
   const [curPw, setCurPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confPw, setConfPw] = useState("");
@@ -303,13 +569,75 @@ function AccessTab({ profile }: { profile?: any }) {
   const [changing, setChanging] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
 
+  // Telegram bot state
+  const [botToken, setBotToken] = useState(profile?.telegramBotTokenMasked || "");
+  const [botStatus, setBotStatus] = useState<{ running: boolean; username: string }>({
+    running: profile?.telegramBotRunning || false,
+    username: profile?.telegramBotUsername || "",
+  });
+  const [botAction, setBotAction] = useState(false);
+  const [botMsg, setBotMsg] = useState<any>(null);
+  const [savingBot, setSavingBot] = useState(false);
+  const [pairingCodes, setPairingCodes] = useState<Record<string, string>>({});
+  const [agents, setAgents] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.telegramStatus().then(setBotStatus).catch(() => {});
+    api.getAgents().then(setAgents).catch(() => {});
+  }, []);
+
+  const saveAndStartBot = async () => {
+    setSavingBot(true);
+    setBotMsg(null);
+    try {
+      await api.updateMe({ telegramBotToken: botToken });
+      const r = await api.telegramRestart();
+      if (r.success) {
+        setBotStatus({ running: true, username: r.username || "" });
+        setBotMsg({ ok: true, t: r.username ? `Bot @${r.username} started` : "Bot started" });
+      } else {
+        setBotMsg({ ok: false, t: r.error || "Failed to start bot" });
+      }
+    } catch (e: any) { setBotMsg({ ok: false, t: e.message }); }
+    finally { setSavingBot(false); }
+  };
+
+  const stopBot = async () => {
+    setBotAction(true);
+    setBotMsg(null);
+    try {
+      await api.telegramStop();
+      setBotStatus({ running: false, username: "" });
+      setBotMsg({ ok: true, t: "Bot stopped" });
+    } catch (e: any) { setBotMsg({ ok: false, t: e.message }); }
+    finally { setBotAction(false); }
+  };
+
+  const generateCode = async (agentId: string) => {
+    try {
+      const r = await api.telegramPair(agentId);
+      setPairingCodes((prev) => ({ ...prev, [agentId]: r.code }));
+    } catch (e: any) { setBotMsg({ ok: false, t: e.message }); }
+  };
+
   const saveProfile = async () => {
     setSavingProfile(true);
     try {
-      await api.updateMe({ city: city.trim(), timezone, assistantName: assistantName.trim(), assistantPersonality: personality.trim() });
+      await api.updateMe({ city: city.trim(), timezone, assistantName: assistantName.trim(), assistantPersonality: personality.trim(), phone: phone.trim(), telegramChatId: tgChatId.trim() });
       setProfileMsg({ ok: true, t: "Saved" });
     } catch (e: any) { setProfileMsg({ ok: false, t: e.message }); }
     finally { setSavingProfile(false); }
+  };
+
+  const testAlert = async (channel: "telegram" | "sms" | "all") => {
+    setTestingAlert(true);
+    try {
+      // Save first so the latest values are in DB
+      await api.updateMe({ phone: phone.trim(), telegramChatId: tgChatId.trim() });
+      const r = await api.testAlert(channel);
+      setAlertResult(r);
+    } catch (e: any) { setAlertResult({ success: false, message: e.message }); }
+    finally { setTestingAlert(false); }
   };
 
   const changePw = async () => {
@@ -351,6 +679,101 @@ function AccessTab({ profile }: { profile?: any }) {
           </div>
           {profileMsg && <p className="text-xs" style={{ color: profileMsg.ok ? "#4ade80" : "#f87171" }}>{profileMsg.t}</p>}
           <Btn onClick={saveProfile} disabled={savingProfile}>{savingProfile ? "..." : "Save profile"}</Btn>
+        </div>
+      </Card>
+
+      <Card>
+        <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-primary)" }}>Alert channels</h3>
+        <p className="text-[10px] mb-3" style={{ color: "var(--text-muted)" }}>
+          Receive reminders and agent alerts via Telegram or SMS. Telegram requires the bot to be started in Connections and your Chat ID configured below.
+          Get your Chat ID by messaging <span style={{ color: "var(--accent)" }}>@userinfobot</span> on Telegram.
+        </p>
+        <div className="space-y-3">
+          <div>
+            <Label>Telegram Chat ID</Label>
+            <Input value={tgChatId} onChange={(e) => setTgChatId(e.target.value)} placeholder="e.g. 123456789" />
+          </div>
+          <div>
+            <Label>Phone number <span style={{ color: "var(--text-muted)", fontSize: 10 }}>(for SMS via Twilio)</span></Label>
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1234567890" />
+          </div>
+          <div className="flex flex-wrap gap-2 items-center">
+            <Btn variant="ghost" onClick={() => testAlert("telegram")} disabled={testingAlert}>Test Telegram</Btn>
+            <Btn variant="ghost" onClick={() => testAlert("sms")} disabled={testingAlert}>Test SMS</Btn>
+            <Btn variant="ghost" onClick={() => testAlert("all")} disabled={testingAlert}>{testingAlert ? "..." : "Test All"}</Btn>
+            {alertResult && <span className="text-xs" style={{ color: alertResult.success ? "#4ade80" : "#f87171" }}>{alertResult.message}</span>}
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <h3 className="text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>Telegram Bot</h3>
+        <p className="text-[10px] mb-3" style={{ color: "var(--text-muted)" }}>
+          Create your own bot via <span style={{ color: "var(--accent)" }}>@BotFather</span> on Telegram, paste the token below,
+          then start it. Each family member uses their own bot.
+        </p>
+
+        {/* Status indicator */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className="inline-block w-2 h-2 rounded-full" style={{ background: botStatus.running ? "#4ade80" : "#6b7280" }} />
+          <span className="text-xs" style={{ color: botStatus.running ? "#4ade80" : "var(--text-muted)" }}>
+            {botStatus.running ? `Running${botStatus.username ? ` as @${botStatus.username}` : ""}` : "Not running"}
+          </span>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <Label>Bot Token</Label>
+            <Input
+              type="password"
+              value={botToken}
+              onChange={(e) => setBotToken(e.target.value)}
+              placeholder={profile?.telegramBotTokenSet ? "Token saved — enter new to replace" : "1234567890:ABC..."}
+            />
+            {profile?.telegramBotTokenSet && !botToken && (
+              <p className="text-[10px] mt-1" style={{ color: "var(--text-muted)" }}>
+                Token on file: {profile.telegramBotTokenMasked}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            <Btn variant="primary" onClick={saveAndStartBot} disabled={savingBot || (!botToken && !profile?.telegramBotTokenSet)}>
+              {savingBot ? "..." : botStatus.running ? "Save & Restart" : "Save & Start"}
+            </Btn>
+            {botStatus.running && (
+              <Btn onClick={stopBot} disabled={botAction}>{botAction ? "..." : "Stop"}</Btn>
+            )}
+            {botMsg && <span className="text-xs" style={{ color: botMsg.ok ? "#4ade80" : "#f87171" }}>{botMsg.t}</span>}
+          </div>
+
+          {/* Pairing codes */}
+          {botStatus.running && agents.length > 0 && (
+            <div>
+              <Label>Pair an agent</Label>
+              <p className="text-[10px] mb-2" style={{ color: "var(--text-muted)" }}>
+                Generate a code, then send <span className="font-mono">/pair CODE</span> to your bot in Telegram.
+              </p>
+              <div className="space-y-1.5">
+                {agents.map((a) => (
+                  <div key={a.id} className="flex items-center gap-2 justify-between rounded-md border px-3 py-1.5"
+                    style={{ borderColor: "var(--border)", background: "var(--bg-input)" }}>
+                    <span className="text-xs" style={{ color: "var(--text-primary)" }}>{a.name}</span>
+                    {pairingCodes[a.id] ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono font-semibold" style={{ color: "var(--accent)" }}>{pairingCodes[a.id]}</span>
+                        <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>expires in 10 min</span>
+                      </div>
+                    ) : (
+                      <Btn variant="ghost" onClick={() => generateCode(a.id)} style={{ padding: "2px 10px", fontSize: 11 }}>
+                        Get code
+                      </Btn>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </Card>
 

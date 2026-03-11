@@ -2,21 +2,53 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../db.js";
 import { chatWithAgent } from "../services/chat.js";
 import { log } from "../logger.js";
+import { guardrailError, detectExternalServices } from "../services/guardrail.js";
 
 export async function automationRoutes(app: FastifyInstance) {
-  app.get("/api/automations", async () => {
-    return prisma.automation.findMany({ orderBy: { createdAt: "desc" } });
+  // List — only the current user's automations
+  app.get("/api/automations", async (req) => {
+    return prisma.automation.findMany({
+      where: { userId: req.userId },
+      orderBy: { createdAt: "desc" },
+    });
   });
 
-  app.get("/api/automations/:id", async (req) => {
+  app.get("/api/automations/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
-    return prisma.automation.findUniqueOrThrow({ where: { id } });
+    const automation = await prisma.automation.findUnique({ where: { id } });
+    if (!automation) return reply.status(404).send({ error: "Not found" });
+    if (automation.userId && automation.userId !== req.userId && req.userRole !== "admin") {
+      return reply.status(403).send({ error: "Forbidden" });
+    }
+    return automation;
   });
 
-  app.post("/api/automations", async (req) => {
+  app.post("/api/automations", async (req, reply) => {
     const body = req.body as any;
+
+    // ── Guardrail: detect external services not yet approved ─────────────
+    const allText = [body.what, body.systems, body.dataSource, body.delivery].filter(Boolean).join(" ");
+    const external = detectExternalServices(allText);
+    if (external.length > 0) {
+      // Auto-create a connection request so the admin can review
+      await prisma.connectionRequest.create({
+        data: {
+          userId: req.userId,
+          service: external.join(", "),
+          description: `Requested via automation: "${body.what?.slice(0, 120) || ""}"`,
+          status: "pending",
+        },
+      });
+      const g = guardrailError(
+        `This automation references external service(s) that require admin approval: ${external.join(", ")}. A connection request has been submitted. You'll be notified once approved.`,
+        `Automation: ${body.what?.slice(0, 60) || "new automation"}`
+      );
+      return reply.status(g.status).send(g.body);
+    }
+
     const automation = await prisma.automation.create({
       data: {
+        userId: req.userId,
         what: body.what || "",
         systems: body.systems || "",
         frequency: body.frequency || "",
@@ -26,9 +58,9 @@ export async function automationRoutes(app: FastifyInstance) {
       },
     });
 
-    // Create a ticket for the Orchestrator to implement this automation
+    // Create a ticket for the user's Coordinator to implement this automation
     const orchestrator = await prisma.agent.findFirst({
-      where: { id: "orchestrator-001" },
+      where: { role: "Coordinator", userId: req.userId },
     });
 
     if (orchestrator) {
@@ -66,8 +98,14 @@ export async function automationRoutes(app: FastifyInstance) {
     return automation;
   });
 
-  app.put("/api/automations/:id", async (req) => {
+  app.put("/api/automations/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
+    const automation = await prisma.automation.findUnique({ where: { id } });
+    if (!automation) return reply.status(404).send({ error: "Not found" });
+    if (automation.userId && automation.userId !== req.userId && req.userRole !== "admin") {
+      return reply.status(403).send({ error: "Forbidden" });
+    }
+
     const body = req.body as any;
     const data: any = {};
     for (const key of ["what", "systems", "frequency", "dataSource", "delivery", "status", "testResult"]) {
@@ -77,14 +115,18 @@ export async function automationRoutes(app: FastifyInstance) {
   });
 
   // Test an automation
-  app.post("/api/automations/:id/test", async (req) => {
+  app.post("/api/automations/:id/test", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const automation = await prisma.automation.findUniqueOrThrow({ where: { id } });
-
-    const orchestrator = await prisma.agent.findFirst({ where: { id: "orchestrator-001" } });
-    if (!orchestrator) {
-      return { success: false, error: "Orchestrator not found" };
+    const automation = await prisma.automation.findUnique({ where: { id } });
+    if (!automation) return reply.status(404).send({ error: "Not found" });
+    if (automation.userId && automation.userId !== req.userId && req.userRole !== "admin") {
+      return reply.status(403).send({ error: "Forbidden" });
     }
+
+    const orchestrator = await prisma.agent.findFirst({
+      where: { role: "Coordinator", userId: req.userId },
+    });
+    if (!orchestrator) return { success: false, error: "Orchestrator not found" };
 
     const conv = await prisma.conversation.create({
       data: { agentId: orchestrator.id, title: `Test automation: ${automation.what}` },
@@ -101,43 +143,44 @@ export async function automationRoutes(app: FastifyInstance) {
         `Delivery: ${automation.delivery}`,
         ``,
         `Verify feasibility, check if required skills and agents are available, and confirm readiness.`,
-      ].join("\n"));
+      ].join("\n"), req.userId);
 
       const testResult = result.message.content;
-      await prisma.automation.update({
-        where: { id },
-        data: { testResult, status: "tested" },
-      });
-
+      await prisma.automation.update({ where: { id }, data: { testResult, status: "tested" } });
       return { success: true, testResult };
     } catch (e: any) {
       const errorMsg = `Test failed: ${e.message}`;
-      await prisma.automation.update({
-        where: { id },
-        data: { testResult: errorMsg, status: "failed" },
-      });
+      await prisma.automation.update({ where: { id }, data: { testResult: errorMsg, status: "failed" } });
       return { success: false, error: errorMsg };
     }
   });
 
   // Confirm automation is active
-  app.post("/api/automations/:id/confirm", async (req) => {
+  app.post("/api/automations/:id/confirm", async (req, reply) => {
     const { id } = req.params as { id: string };
-    await prisma.automation.update({
-      where: { id },
-      data: { status: "active" },
-    });
+    const automation = await prisma.automation.findUnique({ where: { id } });
+    if (!automation) return reply.status(404).send({ error: "Not found" });
+    if (automation.userId && automation.userId !== req.userId && req.userRole !== "admin") {
+      return reply.status(403).send({ error: "Forbidden" });
+    }
+    await prisma.automation.update({ where: { id }, data: { status: "active" } });
     await log("info", "automation", `Automation ${id} confirmed as active`);
     return { success: true };
   });
 
-  app.delete("/api/automations/:id", async (req) => {
+  app.delete("/api/automations/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
+    const automation = await prisma.automation.findUnique({ where: { id } });
+    if (!automation) return reply.status(404).send({ error: "Not found" });
+    if (automation.userId && automation.userId !== req.userId && req.userRole !== "admin") {
+      return reply.status(403).send({ error: "Forbidden" });
+    }
     await prisma.automation.delete({ where: { id } });
     return { success: true };
   });
 
-  // Scheduled tasks CRUD
+  // ── Scheduled tasks ────────────────────────────────────────────────────
+  // Read: any authenticated user can view (so their dashboard can show task health)
   app.get("/api/scheduled-tasks", async () => {
     return prisma.scheduledTask.findMany({
       include: { agent: { select: { id: true, name: true } } },
@@ -145,7 +188,12 @@ export async function automationRoutes(app: FastifyInstance) {
     });
   });
 
-  app.put("/api/scheduled-tasks/:id", async (req) => {
+  // Write: admin only
+  app.put("/api/scheduled-tasks/:id", async (req, reply) => {
+    if (req.userRole !== "admin") {
+      const g = guardrailError("Only admins can modify scheduled tasks.", "Modify scheduled task");
+      return reply.status(g.status).send(g.body);
+    }
     const { id } = req.params as { id: string };
     const body = req.body as any;
     const data: any = {};

@@ -33,10 +33,15 @@ import { dataExportRoutes } from "./routes/data-export.js";
 import { usageRoutes } from "./routes/usage.js";
 import { weatherRoutes } from "./routes/weather.js";
 import { updateRoutes } from "./routes/update.js";
+import { alertRoutes } from "./routes/alerts.js";
+import { financeRoutes } from "./routes/finance.js";
+import { shoppingRoutes } from "./routes/shopping.js";
+import { travelRoutes } from "./routes/travel.js";
+import { connectionRoutes } from "./routes/connections.js";
 import multipart from "@fastify/multipart";
 import { log } from "./logger.js";
 import { startWorker } from "./services/worker.js";
-import { startBot } from "./services/telegram.js";
+import { startAllUserBots } from "./services/telegram.js";
 import { startScheduler } from "./services/scheduler.js";
 import { isSetup, validateSession } from "./services/auth.js";
 import { prisma } from "./db.js";
@@ -45,7 +50,7 @@ const app = Fastify({ logger: false });
 
 await app.register(cors, { origin: true, credentials: true });
 await app.register(cookie);
-await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } });
+await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } });
 
 // Public auth paths — no session required
 function isPublicPath(url: string): boolean {
@@ -123,6 +128,11 @@ await app.register(dataExportRoutes);
 await app.register(usageRoutes);
 await app.register(weatherRoutes);
 await app.register(updateRoutes);
+await app.register(alertRoutes);
+await app.register(financeRoutes);
+await app.register(shoppingRoutes);
+await app.register(travelRoutes);
+await app.register(connectionRoutes);
 
 // Serve frontend build (production mode)
 const frontendDist = path.resolve(import.meta.dirname, "../../frontend/dist");
@@ -147,13 +157,7 @@ try {
   startWorker();
   startScheduler();
 
-  const tgToken = await prisma.setting.findUnique({ where: { key: "telegram_bot_token" } });
-  if (tgToken?.value) {
-    const result = await startBot();
-    if (!result.success) console.log(`📱 Telegram bot failed to start: ${result.error}`);
-  } else {
-    console.log("📱 Telegram bot: no token configured (add in Settings)");
-  }
+  await startAllUserBots();
 } catch (err) {
   console.error(err);
   process.exit(1);

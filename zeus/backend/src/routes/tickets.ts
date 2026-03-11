@@ -30,6 +30,7 @@ export async function ticketRoutes(app: FastifyInstance) {
         status: body.status || "queued",
         agentId: body.agentId || null,
         dueAt: body.dueAt ? new Date(body.dueAt) : null,
+        recurring: body.recurring || "",
         output: "",
         userId: req.userId,
       },
@@ -51,7 +52,39 @@ export async function ticketRoutes(app: FastifyInstance) {
     if (body.output !== undefined) data.output = body.output;
     if (body.category !== undefined) data.category = body.category;
     if (body.dueAt !== undefined) data.dueAt = body.dueAt ? new Date(body.dueAt) : null;
-    return prisma.ticket.update({ where: { id }, data });
+    if (body.recurring !== undefined) data.recurring = body.recurring;
+    if (body.status === "done") data.completedAt = new Date();
+    else if (body.status === "queued" || body.status === "in_progress") data.completedAt = null;
+
+    const updated = await prisma.ticket.update({ where: { id }, data });
+
+    // Auto-spawn next occurrence for recurring tasks
+    if (body.status === "done" && updated.recurring && updated.dueAt) {
+      const next = new Date(updated.dueAt);
+      if (updated.recurring === "daily") next.setDate(next.getDate() + 1);
+      else if (updated.recurring === "weekly") next.setDate(next.getDate() + 7);
+      else if (updated.recurring === "monthly") next.setMonth(next.getMonth() + 1);
+
+      // Only create if next due date is in the future
+      if (next > new Date()) {
+        await prisma.ticket.create({
+          data: {
+            title: updated.title,
+            description: updated.description,
+            priority: updated.priority,
+            category: updated.category,
+            dueAt: next,
+            recurring: updated.recurring,
+            status: "queued",
+            output: "",
+            userId: updated.userId,
+          },
+        });
+        await log("info", "tickets", `Recurring task spawned: "${updated.title}" → ${next.toISOString()}`);
+      }
+    }
+
+    return updated;
   });
 
   app.delete("/api/tickets/:id", async (req, reply) => {
