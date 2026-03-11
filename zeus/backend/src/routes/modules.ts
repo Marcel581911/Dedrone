@@ -68,6 +68,7 @@ export async function moduleRoutes(app: FastifyInstance) {
   // Install a module
   app.post("/api/modules/:slug/install", async (req) => {
     const { slug } = req.params as { slug: string };
+    const userId = (req as any).userId as string | undefined;
     const mod = await prisma.module.findUniqueOrThrow({ where: { slug } });
 
     if (mod.status === "installed") {
@@ -84,8 +85,9 @@ export async function moduleRoutes(app: FastifyInstance) {
     if (manifest.agents) {
       for (const agentDef of manifest.agents) {
         const existing = await prisma.agent.findFirst({ where: { name: agentDef.name, moduleSlug: slug } });
+        let agent = existing;
         if (!existing) {
-          await prisma.agent.create({
+          agent = await prisma.agent.create({
             data: {
               name: agentDef.name,
               description: agentDef.description || "",
@@ -97,9 +99,23 @@ export async function moduleRoutes(app: FastifyInstance) {
               maxTokens: agentDef.maxTokens ?? 2048,
               enabled: true,
               moduleSlug: slug,
+              userId: userId || null,
               tags: JSON.stringify(agentDef.tags || []),
             },
           });
+        }
+        // Wire existing built-in skills to the new agent
+        if (agent && agentDef.skills) {
+          for (const skillName of agentDef.skills) {
+            const skill = await prisma.skill.findUnique({ where: { name: skillName } });
+            if (skill) {
+              await prisma.agentSkill.upsert({
+                where: { agentId_skillId: { agentId: agent.id, skillId: skill.id } },
+                update: {},
+                create: { agentId: agent.id, skillId: skill.id },
+              });
+            }
+          }
         }
       }
     }

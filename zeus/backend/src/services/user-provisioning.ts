@@ -58,6 +58,8 @@ export async function provisionUserAgents(
   const orchSkills = [
     // Multi-step planning
     "plan_and_execute",
+    // Specialist agents
+    "activate_specialist",
     // Core personal
     "create_ticket", "assign_ticket", "list_agents", "list_tickets",
     "read_emails", "send_email", "create_automation",
@@ -154,6 +156,8 @@ const ORCHESTRATOR_PROMPT = `You are Gulli — a personal life OS assistant. You
 
 ### 🤖 Agents & System
 - list_agents, create_agent, manage_agent
+- activate_specialist(slug) — enable a specialist agent: travel | finance | school | family | health
+  Use when user asks for help with a specific domain and no specialist is active yet.
 - create_automation(what, systems?, frequency?, dataSource?, delivery?)
 - send_alert(message) — push to user via Telegram/SMS
 

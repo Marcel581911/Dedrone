@@ -142,6 +142,14 @@ async function main() {
   await upsertSkill("get_poi_memory", "Get the list of places you have visited, optionally filtered by country, city, or category.",
     { country: { type: "string" }, city: { type: "string" }, category: { type: "string" } });
 
+  // Specialist activation skill
+  await upsertSkill(
+    "activate_specialist",
+    "Activate a specialist agent by slug. Available specialists: travel, finance, school, family, health. Use when user wants to add a specialist or enable a module.",
+    { slug: { type: "string", description: "Specialist slug: travel | finance | school | family | health" } },
+    ["slug"]
+  );
+
   // ── System agent ──────────────────────────────────────────────────────────
   const systemAgent = await prisma.agent.upsert({
     where: { id: "system-001" },
@@ -185,38 +193,51 @@ async function main() {
     if (!existing) await prisma.scheduledTask.create({ data: t });
   }
 
-  // ── Module registry (installable add-ons only — Finance/Shopping/Travel are built-in) ──
+  // ── Module registry (specialist agent add-ons) ────────────────────────────
+  const readManifest = (slug: string) => {
+    const p = require("path").resolve(__dirname, `../../modules/${slug}/manifest.json`);
+    try { return require("fs").readFileSync(p, "utf8"); } catch { return "{}"; }
+  };
+
   const moduleDefinitions = [
     {
-      slug: "school", name: "School Manager", description: "Track assignments, grades, and school activities.", icon: "📚",
-      manifest: {
-        settings: [
-          { key: "school_name", label: "School Name", type: "text", required: true },
-          { key: "student_name", label: "Student Name", type: "text", required: true },
-        ],
-        agents: [{ name: "School Agent", role: "Education assistant", mission: "Help manage school tasks", systemPrompt: "You are a school management assistant. Help track homework, assignments, and schedules.", tags: ["school"] }],
-        skills: [
-          { name: "add_assignment", description: "Add a homework assignment", inputSchema: { type: "object", properties: { subject: { type: "string" }, title: { type: "string" }, dueDate: { type: "string" } }, required: ["subject", "title"] } },
-        ],
-      },
+      slug: "finance",
+      name: "Finance Agent",
+      description: "Personal finance specialist — net worth tracking, portfolio analysis, spending insights, and debt management.",
+      icon: "💰",
     },
     {
-      slug: "health", name: "Health & Wellness", description: "Track health metrics, medications, and appointments.", icon: "❤",
-      manifest: {
-        settings: [{ key: "user_dob", label: "Date of Birth", type: "text", required: false }],
-        agents: [{ name: "Health Agent", role: "Health assistant", mission: "Help track health and wellness", systemPrompt: "You are a health and wellness assistant. Never provide medical diagnoses.", tags: ["health"] }],
-        skills: [
-          { name: "log_health_metric", description: "Log a health measurement", inputSchema: { type: "object", properties: { metric: { type: "string" }, value: { type: "number" }, unit: { type: "string" } }, required: ["metric", "value"] } },
-        ],
-      },
+      slug: "travel",
+      name: "Travel Agent",
+      description: "Full trip planning, flight monitoring, itinerary building, and travel memory.",
+      icon: "✈️",
+    },
+    {
+      slug: "family",
+      name: "Family Coordinator",
+      description: "Family logistics specialist — coordinate schedules, shopping, tasks, reminders, and household management.",
+      icon: "🏡",
+    },
+    {
+      slug: "school",
+      name: "School Agent",
+      description: "Education specialist — track assignments, deadlines, exam schedules, and school communications.",
+      icon: "📚",
+    },
+    {
+      slug: "health",
+      name: "Health Agent",
+      description: "Health and wellness specialist — track appointments, medications, fitness goals, and health reminders.",
+      icon: "❤️",
     },
   ];
 
   for (const m of moduleDefinitions) {
+    const manifestStr = readManifest(m.slug);
     await prisma.module.upsert({
       where: { slug: m.slug },
-      update: {},
-      create: { slug: m.slug, name: m.name, description: m.description, icon: m.icon, manifest: JSON.stringify(m.manifest), status: "available" },
+      update: { name: m.name, description: m.description, icon: m.icon, manifest: manifestStr },
+      create: { slug: m.slug, name: m.name, description: m.description, icon: m.icon, manifest: manifestStr, status: "available" },
     });
   }
 

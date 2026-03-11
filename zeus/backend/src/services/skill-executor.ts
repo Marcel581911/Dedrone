@@ -614,6 +614,55 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
     };
   },
 
+  // ── Activate specialist agent ──────────────────────────────────────────────
+  activate_specialist: async (args, userId) => {
+    const slug = String(args.slug || "").trim();
+    if (!slug) return { success: false, data: {}, message: "Specialist slug required (e.g. 'travel', 'finance', 'school', 'family', 'health')." };
+
+    const mod = await prisma.module.findUnique({ where: { slug } });
+    if (!mod) return { success: false, data: {}, message: `No specialist found with slug "${slug}". Available: travel, finance, school, family, health.` };
+    if (mod.status === "installed") return { success: true, data: { slug }, message: `${mod.name} is already active.` };
+
+    const manifest = JSON.parse(mod.manifest || "{}");
+    for (const agentDef of manifest.agents || []) {
+      const existing = await prisma.agent.findFirst({ where: { name: agentDef.name, moduleSlug: slug } });
+      let agent = existing;
+      if (!existing) {
+        agent = await prisma.agent.create({
+          data: {
+            name: agentDef.name,
+            description: agentDef.description || "",
+            role: agentDef.role || "",
+            mission: agentDef.mission || "",
+            systemPrompt: agentDef.systemPrompt || "",
+            model: agentDef.model || "gpt-4o-mini",
+            temperature: agentDef.temperature ?? 0.7,
+            maxTokens: agentDef.maxTokens ?? 2048,
+            enabled: true,
+            moduleSlug: slug,
+            userId,
+            tags: JSON.stringify(agentDef.tags || []),
+          },
+        });
+      }
+      if (agent && agentDef.skills) {
+        for (const skillName of agentDef.skills) {
+          const skill = await prisma.skill.findUnique({ where: { name: skillName } });
+          if (skill) {
+            await prisma.agentSkill.upsert({
+              where: { agentId_skillId: { agentId: agent.id, skillId: skill.id } },
+              update: {},
+              create: { agentId: agent.id, skillId: skill.id },
+            });
+          }
+        }
+      }
+    }
+    await prisma.module.update({ where: { slug }, data: { status: "installed", installedAt: new Date() } });
+    await log("info", "skill:activate_specialist", `Specialist "${slug}" activated by user ${userId}`);
+    return { success: true, data: { slug }, message: `${mod.name || slug} specialist is now active and ready.` };
+  },
+
   // ── Multi-step plan-and-execute ────────────────────────────────────────────
   plan_and_execute: async (args, userId) => {
     const goal    = String(args.goal    || "").trim();
