@@ -1,7 +1,9 @@
 import { ImapFlow } from "imapflow";
 import nodemailer from "nodemailer";
+import OpenAI from "openai";
 import { prisma } from "../db.js";
 import { log } from "../logger.js";
+import { storeMemory } from "./memory.js";
 
 async function getEmailConfig() {
   const keys = [
@@ -13,6 +15,98 @@ async function getEmailConfig() {
   const cfg: Record<string, string> = {};
   for (const s of settings) cfg[s.key] = s.value;
   return cfg;
+}
+
+// Extract base64-encoded PDF/Excel attachments from a raw MIME message
+function extractParsableAttachments(raw: string): { name: string; buffer: Buffer }[] {
+  const results: { name: string; buffer: Buffer }[] = [];
+  const boundaryMatch = raw.match(/boundary=["']?([^"'\r\n;]+)/i);
+  if (!boundaryMatch) return results;
+
+  const boundary = boundaryMatch[1].trim().replace(/["']/g, "");
+  const parts = raw.split(`--${boundary}`);
+
+  for (const part of parts) {
+    if (!/content-disposition:\s*attachment/i.test(part)) continue;
+
+    const nameMatch = part.match(/filename[*]?=(?:UTF-8'')?["']?([^"'\r\n;]+)/i);
+    if (!nameMatch) continue;
+
+    const name = decodeURIComponent(nameMatch[1].trim().replace(/["']/g, ""));
+    const ext = name.toLowerCase().split(".").pop();
+    if (!["pdf", "xlsx", "xls"].includes(ext || "")) continue;
+    if (!/content-transfer-encoding:\s*base64/i.test(part)) continue;
+
+    const headerEnd = part.search(/\r\n\r\n|\n\n/);
+    if (headerEnd === -1) continue;
+
+    const b64 = part.slice(headerEnd).replace(/\s/g, "");
+    if (b64.length < 100) continue;
+
+    try {
+      const buffer = Buffer.from(b64, "base64");
+      if (buffer.length > 10 * 1024 * 1024) continue; // skip >10MB
+      results.push({ name, buffer });
+    } catch {}
+  }
+
+  return results;
+}
+
+async function summarizeAndMemorize(email: {
+  from: string; subject: string; body: string; date: Date; attachmentTexts?: string[];
+}): Promise<void> {
+  try {
+    const apiKeySetting = await prisma.setting.findUnique({ where: { key: "openai_api_key" } });
+    if (!apiKeySetting?.value) return;
+
+    const bodyText = email.body.trim();
+    const hasAttachments = email.attachmentTexts && email.attachmentTexts.length > 0;
+    if (bodyText.length < 50 && !hasAttachments) return;
+
+    const openai = new OpenAI({ apiKey: apiKeySetting.value });
+
+    let userContent = `From: ${email.from}\nSubject: ${email.subject}\nDate: ${email.date.toISOString()}\n\n${bodyText.slice(0, 2000)}`;
+    if (hasAttachments) {
+      userContent += "\n\n--- Attachments ---\n" + email.attachmentTexts!.join("\n\n---\n");
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "Summarize this email (and any attachments) in 3-4 sentences. Extract: sender intent, key information, any action required, and key figures or data from attachments. Be concise.",
+        },
+        { role: "user", content: userContent },
+      ],
+      max_tokens: 300,
+    });
+
+    const summary = completion.choices[0]?.message?.content?.trim();
+    if (!summary) return;
+
+    const attachmentNote = hasAttachments
+      ? ` [${email.attachmentTexts!.length} attachment(s) parsed]`
+      : "";
+
+    const orchestrators = await prisma.agent.findMany({
+      where: { role: "Coordinator", userId: { not: null } },
+      select: { id: true },
+    });
+    const targets = orchestrators.length > 0 ? orchestrators : [{ id: "system-001" }];
+
+    for (const agent of targets) {
+      await storeMemory(
+        agent.id,
+        `Email from ${email.from} — "${email.subject}" (${email.date.toLocaleDateString()})${attachmentNote}:\n${summary}`,
+        "email_summary",
+        { from: email.from, subject: email.subject }
+      );
+    }
+  } catch (e: any) {
+    await log("warn", "email", `Email summarization failed: ${e.message}`);
+  }
 }
 
 export async function syncInbox(): Promise<number> {
@@ -71,6 +165,20 @@ export async function syncInbox(): Promise<number> {
           extractAttachments(msg.bodyStructure, attachmentList);
         }
 
+        // Parse PDF/Excel attachments from raw source
+        const attachmentTexts: string[] = [];
+        if (msg.source && attachmentList.length > 0) {
+          const parsable = extractParsableAttachments(msg.source.toString());
+          for (const att of parsable.slice(0, 3)) { // max 3 attachments per email
+            try {
+              const parsed = await parseAttachment(att.buffer, att.name);
+              if (parsed && !parsed.startsWith("[Cannot parse")) {
+                attachmentTexts.push(`[${att.name}]\n${parsed.slice(0, 2000)}`);
+              }
+            } catch {}
+          }
+        }
+
         await prisma.emailMessage.create({
           data: {
             messageId,
@@ -85,6 +193,10 @@ export async function syncInbox(): Promise<number> {
             direction: "inbound",
           },
         });
+
+        // Summarize email + attachments and store in agent memory (non-blocking)
+        summarizeAndMemorize({ from, subject, body: body.slice(0, 3000), date: new Date(date), attachmentTexts });
+
         count++;
       }
     } finally {
