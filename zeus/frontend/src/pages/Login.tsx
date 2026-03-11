@@ -59,7 +59,7 @@ export default function Login({ onLogin }: Props) {
     <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "var(--bg-root)" }}>
       <div className="w-full max-w-xs">
         <div className="text-center mb-8">
-          <div className="text-2xl font-semibold tracking-wide mb-1" style={{ color: "var(--accent)" }}>GULLI</div>
+          <div className="text-2xl font-semibold tracking-wide mb-1" style={{ color: "var(--accent)" }}>ZEUS</div>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
             {mode === "login" ? "Sign in to your workspace" : "Join the family"}
           </p>
