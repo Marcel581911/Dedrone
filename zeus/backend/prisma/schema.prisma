@@ -7,6 +7,35 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                   String          @id @default(uuid())
+  name                 String          @unique
+  passwordHash         String
+  role                 String          @default("user")
+  city                 String          @default("")
+  timezone             String          @default("UTC")
+  assistantName        String          @default("Gulli")
+  assistantPersonality String          @default("")
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  agents               Agent[]
+  tickets              Ticket[]
+  notes                Note[]
+  reminders            Reminder[]
+  calendarEvents       CalendarEvent[]
+  notifications        Notification[]
+}
+
+model InviteCode {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  role      String   @default("user")
+  createdBy String
+  usedBy    String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
 model Setting {
   key       String   @id
   value     String
@@ -14,27 +43,29 @@ model Setting {
 }
 
 model Agent {
-  id            String         @id @default(uuid())
-  name          String
-  description   String         @default("")
-  role          String         @default("")
-  mission       String         @default("")
-  systemPrompt  String         @default("You are a helpful assistant.")
-  model         String         @default("gpt-4o-mini")
-  temperature   Float          @default(0.7)
-  maxTokens     Int            @default(2048)
-  enabled       Boolean        @default(true)
-  tags          String         @default("[]")
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  conversations Conversation[]
-  memories      Memory[]
-  tickets       Ticket[]
-  isSystem           Boolean        @default(false)
-  moduleSlug         String?
-  agentSkills        AgentSkill[]
-  telegramPairings   TelegramPairing[]
-  scheduledTasks     ScheduledTask[]
+  id                String            @id @default(uuid())
+  name              String
+  description       String            @default("")
+  role              String            @default("")
+  mission           String            @default("")
+  systemPrompt      String            @default("You are a helpful assistant.")
+  model             String            @default("gpt-4o-mini")
+  temperature       Float             @default(0.7)
+  maxTokens         Int               @default(2048)
+  enabled           Boolean           @default(true)
+  tags              String            @default("[]")
+  isSystem          Boolean           @default(false)
+  moduleSlug        String?
+  userId            String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  user              User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversations     Conversation[]
+  memories          Memory[]
+  tickets           Ticket[]
+  agentSkills       AgentSkill[]
+  telegramPairings  TelegramPairing[]
+  scheduledTasks    ScheduledTask[]
 }
 
 model Conversation {
@@ -78,11 +109,13 @@ model Ticket {
   status      String    @default("queued")
   category    String    @default("Personal")
   agentId     String?
+  userId      String?
   output      String    @default("")
   dueAt       DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   agent       Agent?    @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model Skill {
@@ -138,34 +171,34 @@ model TelegramPairingCode {
 }
 
 model ScheduledTask {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   name        String
-  description String   @default("")
-  intervalMin Int      @default(60)
+  description String    @default("")
+  intervalMin Int       @default(60)
   agentId     String?
-  enabled     Boolean  @default(true)
-  taskType    String   @default("system")
-  taskConfig  String   @default("{}")
+  enabled     Boolean   @default(true)
+  taskType    String    @default("system")
+  taskConfig  String    @default("{}")
   lastRunAt   DateTime?
   nextRunAt   DateTime?
-  lastResult  String   @default("")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  agent       Agent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  lastResult  String    @default("")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  agent       Agent?    @relation(fields: [agentId], references: [id], onDelete: SetNull)
 }
 
 model Automation {
-  id          String   @id @default(uuid())
-  what        String
-  systems     String   @default("")
-  frequency   String   @default("")
-  dataSource  String   @default("")
-  delivery    String   @default("")
-  status      String   @default("draft")
-  ticketId    String?
-  testResult  String   @default("")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(uuid())
+  what       String
+  systems    String   @default("")
+  frequency  String   @default("")
+  dataSource String   @default("")
+  delivery   String   @default("")
+  status     String   @default("draft")
+  ticketId   String?
+  testResult String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model EmailMessage {
@@ -186,29 +219,31 @@ model EmailMessage {
 }
 
 model Module {
-  id            String   @id @default(uuid())
-  slug          String   @unique
-  name          String
-  description   String   @default("")
-  version       String   @default("1.0.0")
-  author        String   @default("")
-  icon          String   @default("")
-  status        String   @default("available")
-  config        String   @default("{}")
-  manifest      String   @default("{}")
-  installedAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String    @id @default(uuid())
+  slug        String    @unique
+  name        String
+  description String    @default("")
+  version     String    @default("1.0.0")
+  author      String    @default("")
+  icon        String    @default("")
+  status      String    @default("available")
+  config      String    @default("{}")
+  manifest    String    @default("{}")
+  installedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model Reminder {
-  id        String    @id @default(uuid())
+  id        String   @id @default(uuid())
   title     String
   dueAt     DateTime
-  recurring String    @default("")
-  status    String    @default("pending")
-  notified  Boolean   @default(false)
-  createdAt DateTime  @default(now())
+  recurring String   @default("")
+  status    String   @default("pending")
+  notified  Boolean  @default(false)
+  userId    String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model Notification {
@@ -218,22 +253,26 @@ model Notification {
   body      String   @default("")
   read      Boolean  @default(false)
   link      String   @default("")
+  userId    String?
   createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model CalendarEvent {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   title       String
-  description String   @default("")
+  description String    @default("")
   startAt     DateTime
   endAt       DateTime?
-  allDay      Boolean  @default(false)
-  location    String   @default("")
-  source      String   @default("manual")
-  sourceId    String   @default("")
-  color       String   @default("")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  allDay      Boolean   @default(false)
+  location    String    @default("")
+  source      String    @default("manual")
+  sourceId    String    @default("")
+  color       String    @default("")
+  userId      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model Note {
@@ -242,18 +281,20 @@ model Note {
   content   String
   pinned    Boolean  @default(false)
   color     String   @default("")
+  userId    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model ApiUsage {
-  id          String   @id @default(uuid())
-  model       String
-  promptTokens    Int  @default(0)
-  completionTokens Int @default(0)
-  totalTokens     Int  @default(0)
-  estimatedCost   Float @default(0)
-  createdAt   DateTime @default(now())
+  id               String   @id @default(uuid())
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  estimatedCost    Float    @default(0)
+  createdAt        DateTime @default(now())
 }
 
 model LogEntry {

@@ -6,32 +6,32 @@ export async function searchRoutes(app: FastifyInstance) {
     const { q, limit } = req.query as { q: string; limit?: string };
     if (!q || q.length < 2) return { results: [] };
 
+    const userId = req.userId;
     const take = Math.min(parseInt(limit || "20"), 50);
-    const term = `%${q}%`;
 
     const [tasks, memories, events, notes, conversations] = await Promise.all([
       prisma.ticket.findMany({
-        where: { OR: [{ title: { contains: q } }, { description: { contains: q } }, { output: { contains: q } }] },
+        where: { userId, OR: [{ title: { contains: q } }, { description: { contains: q } }, { output: { contains: q } }] },
         take, orderBy: { updatedAt: "desc" },
         select: { id: true, title: true, status: true, updatedAt: true },
       }),
       prisma.memory.findMany({
-        where: { content: { contains: q } },
+        where: { content: { contains: q }, agent: { OR: [{ userId }, { userId: null }] } },
         take, orderBy: { createdAt: "desc" },
         select: { id: true, content: true, type: true, createdAt: true },
       }),
       prisma.calendarEvent.findMany({
-        where: { OR: [{ title: { contains: q } }, { description: { contains: q } }] },
+        where: { userId, OR: [{ title: { contains: q } }, { description: { contains: q } }] },
         take, orderBy: { startAt: "desc" },
         select: { id: true, title: true, startAt: true },
       }),
       prisma.note.findMany({
-        where: { OR: [{ title: { contains: q } }, { content: { contains: q } }] },
+        where: { userId, OR: [{ title: { contains: q } }, { content: { contains: q } }] },
         take, orderBy: { updatedAt: "desc" },
         select: { id: true, title: true, content: true },
       }),
       prisma.conversation.findMany({
-        where: { title: { contains: q } },
+        where: { title: { contains: q }, agent: { OR: [{ userId }, { userId: null }] } },
         take, orderBy: { updatedAt: "desc" },
         select: { id: true, title: true, agentId: true, updatedAt: true },
       }),

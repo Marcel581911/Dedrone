@@ -2,19 +2,24 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../db.js";
 
 export async function noteRoutes(app: FastifyInstance) {
-  app.get("/api/notes", async () => {
-    return prisma.note.findMany({ orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }] });
+  app.get("/api/notes", async (req) => {
+    return prisma.note.findMany({
+      where: { userId: req.userId },
+      orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
+    });
   });
 
   app.post("/api/notes", async (req) => {
     const { title, content, pinned, color } = req.body as any;
     return prisma.note.create({
-      data: { title: title || "", content: content || "", pinned: pinned || false, color: color || "" },
+      data: { title: title || "", content: content || "", pinned: pinned || false, color: color || "", userId: req.userId },
     });
   });
 
-  app.put("/api/notes/:id", async (req) => {
+  app.put("/api/notes/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
+    const note = await prisma.note.findFirst({ where: { id, userId: req.userId } });
+    if (!note) return reply.status(404).send({ error: "Note not found." });
     const body = req.body as any;
     const data: any = {};
     if (body.title !== undefined) data.title = body.title;
@@ -24,8 +29,10 @@ export async function noteRoutes(app: FastifyInstance) {
     return prisma.note.update({ where: { id }, data });
   });
 
-  app.delete("/api/notes/:id", async (req) => {
+  app.delete("/api/notes/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
+    const note = await prisma.note.findFirst({ where: { id, userId: req.userId } });
+    if (!note) return reply.status(404).send({ error: "Note not found." });
     await prisma.note.delete({ where: { id } });
     return { success: true };
   });

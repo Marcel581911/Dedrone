@@ -2,18 +2,24 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../db.js";
 import { storeMemory, searchMemory } from "../services/memory.js";
 
+// Agents visible to a user: their own + system agents (userId = null)
+function userAgentFilter(userId: string) {
+  return { OR: [{ userId }, { userId: null }] };
+}
+
 export async function agentRoutes(app: FastifyInstance) {
-  app.get("/api/agents", async () => {
+  app.get("/api/agents", async (req) => {
     return prisma.agent.findMany({
+      where: userAgentFilter(req.userId),
       include: { agentSkills: { include: { skill: true } } },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "asc" },
     });
   });
 
-  app.get("/api/agents/:id", async (req) => {
+  app.get("/api/agents/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
-    return prisma.agent.findUniqueOrThrow({
-      where: { id },
+    const agent = await prisma.agent.findFirst({
+      where: { id, ...userAgentFilter(req.userId) },
       include: {
         agentSkills: { include: { skill: true } },
         conversations: { orderBy: { updatedAt: "desc" } },
@@ -21,6 +27,8 @@ export async function agentRoutes(app: FastifyInstance) {
         memories: { orderBy: { createdAt: "desc" } },
       },
     });
+    if (!agent) return reply.status(404).send({ error: "Agent not found." });
+    return agent;
   });
 
   app.post("/api/agents", async (req) => {
@@ -37,12 +45,16 @@ export async function agentRoutes(app: FastifyInstance) {
         maxTokens: body.maxTokens ?? 2048,
         enabled: body.enabled ?? true,
         tags: JSON.stringify(body.tags || []),
+        userId: req.userId,
       },
     });
   });
 
-  app.put("/api/agents/:id", async (req) => {
+  app.put("/api/agents/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
+    const agent = await prisma.agent.findFirst({ where: { id, ...userAgentFilter(req.userId) } });
+    if (!agent) return reply.status(404).send({ error: "Agent not found." });
+
     const body = req.body as any;
     const data: any = {};
     if (body.name !== undefined) data.name = body.name;
@@ -60,67 +72,53 @@ export async function agentRoutes(app: FastifyInstance) {
 
   app.delete("/api/agents/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
-    const agent = await prisma.agent.findUnique({ where: { id } });
-    if (agent?.isSystem) {
-      return reply.status(400).send({ error: "Cannot delete system agents." });
-    }
+    const agent = await prisma.agent.findFirst({ where: { id, userId: req.userId } });
+    if (!agent) return reply.status(404).send({ error: "Agent not found or not deletable." });
+    if (agent.isSystem) return reply.status(400).send({ error: "Cannot delete system agents." });
     await prisma.agent.delete({ where: { id } });
     return { success: true };
   });
 
-  // Agent skills
-  app.post("/api/agents/:id/skills", async (req) => {
+  // Skills
+  app.post("/api/agents/:id/skills", async (req, reply) => {
     const { id } = req.params as { id: string };
+    const agent = await prisma.agent.findFirst({ where: { id, ...userAgentFilter(req.userId) } });
+    if (!agent) return reply.status(404).send({ error: "Agent not found." });
     const { skillId } = req.body as { skillId: string };
-    return prisma.agentSkill.create({
-      data: { agentId: id, skillId },
-      include: { skill: true },
-    });
+    return prisma.agentSkill.create({ data: { agentId: id, skillId }, include: { skill: true } });
   });
 
   app.delete("/api/agents/:id/skills/:skillId", async (req) => {
     const { id, skillId } = req.params as { id: string; skillId: string };
-    await prisma.agentSkill.deleteMany({
-      where: { agentId: id, skillId },
-    });
+    await prisma.agentSkill.deleteMany({ where: { agentId: id, skillId } });
     return { success: true };
   });
 
   // Conversations
-  app.get("/api/agents/:id/conversations", async (req) => {
+  app.get("/api/agents/:id/conversations", async (req, reply) => {
     const { id } = req.params as { id: string };
-    return prisma.conversation.findMany({
-      where: { agentId: id },
-      orderBy: { updatedAt: "desc" },
-    });
+    const agent = await prisma.agent.findFirst({ where: { id, ...userAgentFilter(req.userId) } });
+    if (!agent) return reply.status(404).send({ error: "Agent not found." });
+    return prisma.conversation.findMany({ where: { agentId: id }, orderBy: { updatedAt: "desc" } });
   });
 
-  app.post("/api/agents/:id/conversations", async (req) => {
+  app.post("/api/agents/:id/conversations", async (req, reply) => {
     const { id } = req.params as { id: string };
+    const agent = await prisma.agent.findFirst({ where: { id, ...userAgentFilter(req.userId) } });
+    if (!agent) return reply.status(404).send({ error: "Agent not found." });
     const body = req.body as any;
-    return prisma.conversation.create({
-      data: {
-        agentId: id,
-        title: body?.title || "New Conversation",
-      },
-    });
+    return prisma.conversation.create({ data: { agentId: id, title: body?.title || "New Conversation" } });
   });
 
   app.get("/api/conversations/:id/messages", async (req) => {
     const { id } = req.params as { id: string };
-    return prisma.message.findMany({
-      where: { conversationId: id },
-      orderBy: { createdAt: "asc" },
-    });
+    return prisma.message.findMany({ where: { conversationId: id }, orderBy: { createdAt: "asc" } });
   });
 
   // Memory
   app.get("/api/agents/:id/memory", async (req) => {
     const { id } = req.params as { id: string };
-    return prisma.memory.findMany({
-      where: { agentId: id },
-      orderBy: { createdAt: "desc" },
-    });
+    return prisma.memory.findMany({ where: { agentId: id }, orderBy: { createdAt: "desc" } });
   });
 
   app.post("/api/agents/:id/memory", async (req) => {

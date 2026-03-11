@@ -3,7 +3,7 @@ import { prisma } from "../db.js";
 import { log } from "../logger.js";
 import nodemailer from "nodemailer";
 
-const SUPPORT_EMAIL = "support.zeus@zephyre.com";
+const SUPPORT_EMAIL = "support.gulli@zephyre.com";
 
 export async function supportRoutes(app: FastifyInstance) {
   app.post("/api/support/ticket", async (req) => {
@@ -19,12 +19,12 @@ export async function supportRoutes(app: FastifyInstance) {
 
     // Get user info
     const userName = (await prisma.setting.findUnique({ where: { key: "user_name" } }))?.value || "Unknown";
-    const assistantName = (await prisma.setting.findUnique({ where: { key: "assistant_name" } }))?.value || "Zeus";
+    const assistantName = (await prisma.setting.findUnique({ where: { key: "assistant_name" } }))?.value || "Gulli";
     const vmAddress = (await prisma.setting.findUnique({ where: { key: "vm_address" } }))?.value || "";
 
     // Build email body
     const body = [
-      `ZEUS Support Ticket`,
+      `Gulli Support Ticket`,
       `═══════════════════`,
       ``,
       `User: ${userName}`,
@@ -39,7 +39,7 @@ export async function supportRoutes(app: FastifyInstance) {
       description,
       ``,
       `---`,
-      `Sent from ZEUS Agent Runtime`,
+      `Sent from Gulli Agent Orchestrator`,
     ].join("\n");
 
     // Try to send via email if configured
@@ -50,7 +50,7 @@ export async function supportRoutes(app: FastifyInstance) {
       const smtpUser = (await prisma.setting.findUnique({ where: { key: "email_smtp_user" } }))?.value;
       const smtpPass = (await prisma.setting.findUnique({ where: { key: "email_smtp_pass" } }))?.value;
       const fromAddr = (await prisma.setting.findUnique({ where: { key: "email_from_address" } }))?.value || smtpUser;
-      const fromName = (await prisma.setting.findUnique({ where: { key: "email_from_name" } }))?.value || "ZEUS";
+      const fromName = (await prisma.setting.findUnique({ where: { key: "email_from_name" } }))?.value || "GULLI";
 
       if (smtpHost && smtpUser && smtpPass) {
         const transporter = nodemailer.createTransport({
@@ -63,7 +63,7 @@ export async function supportRoutes(app: FastifyInstance) {
         await transporter.sendMail({
           from: `"${fromName}" <${fromAddr}>`,
           to: SUPPORT_EMAIL,
-          subject: `[ZEUS Support] ${subject}`,
+          subject: `[Gulli Support] ${subject}`,
           text: body,
         });
 

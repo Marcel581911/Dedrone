@@ -4,7 +4,7 @@ import { prisma } from "../db.js";
 export async function calendarRoutes(app: FastifyInstance) {
   app.get("/api/calendar", async (req) => {
     const query = req.query as { start?: string; end?: string };
-    const where: any = {};
+    const where: any = { userId: req.userId };
     if (query.start) where.startAt = { gte: new Date(query.start) };
     if (query.end) where.startAt = { ...where.startAt, lte: new Date(query.end) };
     return prisma.calendarEvent.findMany({ where, orderBy: { startAt: "asc" } });
@@ -23,12 +23,15 @@ export async function calendarRoutes(app: FastifyInstance) {
         source: body.source || "manual",
         sourceId: body.sourceId || "",
         color: body.color || "",
+        userId: req.userId,
       },
     });
   });
 
-  app.put("/api/calendar/:id", async (req) => {
+  app.put("/api/calendar/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
+    const event = await prisma.calendarEvent.findFirst({ where: { id, userId: req.userId } });
+    if (!event) return reply.status(404).send({ error: "Event not found." });
     const body = req.body as any;
     const data: any = {};
     if (body.title !== undefined) data.title = body.title;
@@ -41,8 +44,10 @@ export async function calendarRoutes(app: FastifyInstance) {
     return prisma.calendarEvent.update({ where: { id }, data });
   });
 
-  app.delete("/api/calendar/:id", async (req) => {
+  app.delete("/api/calendar/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
+    const event = await prisma.calendarEvent.findFirst({ where: { id, userId: req.userId } });
+    if (!event) return reply.status(404).send({ error: "Event not found." });
     await prisma.calendarEvent.delete({ where: { id } });
     return { success: true };
   });

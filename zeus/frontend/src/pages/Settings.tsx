@@ -3,19 +3,23 @@ import { Link } from "react-router-dom";
 import { api } from "../api";
 import { Card, PageTitle, Btn, Input, Label, Badge, EmptyState } from "../components/ui";
 
-type Tab = "connections" | "agents" | "skills" | "logs" | "access" | "update";
+type Tab = "connections" | "agents" | "skills" | "logs" | "access" | "family" | "update";
 
-export default function Settings() {
+interface Props { profile?: any; }
+
+export default function Settings({ profile }: Props) {
+  const isAdmin = profile?.role === "admin" || profile?.role === "superuser";
   const [tab, setTab] = useState<Tab>("connections");
 
-  const tabs: { key: Tab; label: string }[] = [
+  const tabs: { key: Tab; label: string; adminOnly?: boolean }[] = [
     { key: "connections", label: "Connections" },
     { key: "agents", label: "Agents" },
     { key: "skills", label: "Skills" },
     { key: "logs", label: "Logs" },
-    { key: "access", label: "Access" },
+    { key: "access", label: "Profile" },
+    { key: "family", label: "Family", adminOnly: true },
     { key: "update", label: "Update" },
-  ];
+  ].filter((t) => !t.adminOnly || isAdmin);
 
   return (
     <div className="max-w-4xl">
@@ -36,7 +40,8 @@ export default function Settings() {
       {tab === "agents" && <AgentsTab />}
       {tab === "skills" && <SkillsTab />}
       {tab === "logs" && <LogsTab />}
-      {tab === "access" && <AccessTab />}
+      {tab === "access" && <AccessTab profile={profile} />}
+      {tab === "family" && isAdmin && <FamilyTab profile={profile} />}
       {tab === "update" && <UpdateTab />}
     </div>
   );
@@ -285,24 +290,27 @@ function LogsTab() {
   );
 }
 
-function AccessTab() {
-  const [vm, setVm] = useState("");
-  const [city, setCity] = useState("");
-  const [timezone, setTimezone] = useState("");
+function AccessTab({ profile }: { profile?: any }) {
+  const [city, setCity] = useState(profile?.city || "");
+  const [timezone, setTimezone] = useState(profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const [assistantName, setAssistantName] = useState(profile?.assistantName || "");
+  const [personality, setPersonality] = useState(profile?.assistantPersonality || "");
   const [curPw, setCurPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confPw, setConfPw] = useState("");
   const [pwMsg, setPwMsg] = useState<any>(null);
-  const [locMsg, setLocMsg] = useState<any>(null);
+  const [profileMsg, setProfileMsg] = useState<any>(null);
   const [changing, setChanging] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
 
-  useEffect(() => {
-    api.authStatus().then((s) => {
-      if (s.vmAddress) setVm(s.vmAddress);
-      if (s.user_city) setCity(s.user_city);
-      if (s.user_timezone) setTimezone(s.user_timezone);
-    });
-  }, []);
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      await api.updateMe({ city: city.trim(), timezone, assistantName: assistantName.trim(), assistantPersonality: personality.trim() });
+      setProfileMsg({ ok: true, t: "Saved" });
+    } catch (e: any) { setProfileMsg({ ok: false, t: e.message }); }
+    finally { setSavingProfile(false); }
+  };
 
   const changePw = async () => {
     if (newPw.length < 4) { setPwMsg({ ok: false, t: "Min 4 characters" }); return; }
@@ -313,18 +321,22 @@ function AccessTab() {
     finally { setChanging(false); }
   };
 
-  const saveLocation = async () => {
-    try {
-      await api.updateSettings({ user_city: city, user_timezone: timezone });
-      setLocMsg({ ok: true, t: "Location saved" });
-    } catch (e: any) { setLocMsg({ ok: false, t: e.message }); }
-  };
-
   return (
     <div className="max-w-sm space-y-4">
       <Card>
-        <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-primary)" }}>Location & timezone</h3>
+        <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-primary)" }}>Profile</h3>
         <div className="space-y-3">
+          <div>
+            <Label>Assistant name</Label>
+            <Input value={assistantName} onChange={(e) => setAssistantName(e.target.value)} placeholder="e.g. Gulli, Aria" />
+          </div>
+          <div>
+            <Label>Personality <span style={{ color: "var(--text-muted)", fontSize: 10 }}>(optional)</span></Label>
+            <textarea value={personality} onChange={(e) => setPersonality(e.target.value)}
+              placeholder="Professional but friendly, concise..."
+              className="w-full rounded-md border px-3 py-2 text-sm min-h-[60px]"
+              style={{ background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--text-primary)" }} />
+          </div>
           <div>
             <Label>City</Label>
             <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Paris, New York" />
@@ -336,24 +348,10 @@ function AccessTab() {
               style={{ background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--text-primary)" }}>
               {Intl.supportedValuesOf("timeZone").map((tz) => <option key={tz} value={tz}>{tz.replace(/_/g, " ")}</option>)}
             </select>
-            <p className="text-[10px] mt-0.5" style={{ color: "var(--text-muted)" }}>Used for reminders, calendar, and weather</p>
           </div>
-          {locMsg && <p className="text-xs" style={{ color: locMsg.ok ? "#4ade80" : "#f87171" }}>{locMsg.t}</p>}
-          <Btn onClick={saveLocation}>Save location</Btn>
+          {profileMsg && <p className="text-xs" style={{ color: profileMsg.ok ? "#4ade80" : "#f87171" }}>{profileMsg.t}</p>}
+          <Btn onClick={saveProfile} disabled={savingProfile}>{savingProfile ? "..." : "Save profile"}</Btn>
         </div>
-      </Card>
-
-      <Card>
-        <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-primary)" }}>Remote access</h3>
-        <div className="flex gap-2 mb-2">
-          <Input value={vm} onChange={(e) => setVm(e.target.value)} placeholder="VM IP" className="flex-1" />
-          <Btn onClick={async () => { await api.updateVmAddress(vm); }}>Save</Btn>
-        </div>
-        {vm && (
-          <a href={`http://${vm}:3000`} target="_blank" rel="noopener" className="text-sm font-mono" style={{ color: "var(--accent)" }}>
-            http://{vm}:3000
-          </a>
-        )}
       </Card>
 
       <Card>
@@ -365,6 +363,143 @@ function AccessTab() {
           {pwMsg && <p className="text-xs" style={{ color: pwMsg.ok ? "#4ade80" : "#f87171" }}>{pwMsg.t}</p>}
           <Btn onClick={changePw} disabled={changing}>{changing ? "..." : "Change"}</Btn>
         </div>
+      </Card>
+    </div>
+  );
+}
+
+const ROLE_LABELS: Record<string, string> = { admin: "Admin", superuser: "Super User", user: "User", guest: "Guest" };
+
+function FamilyTab({ profile }: { profile?: any }) {
+  const [users, setUsers] = useState<any[]>([]);
+  const [invites, setInvites] = useState<any[]>([]);
+  const [newInviteRole, setNewInviteRole] = useState("user");
+  const [creatingInvite, setCreatingInvite] = useState(false);
+  const [copiedCode, setCopiedCode] = useState("");
+
+  const load = () => {
+    api.getUsers().then(setUsers);
+    api.getInvites().then(setInvites);
+  };
+  useEffect(() => { load(); }, []);
+
+  const createInvite = async () => {
+    setCreatingInvite(true);
+    try {
+      await api.createInvite(newInviteRole);
+      load();
+    } finally { setCreatingInvite(false); }
+  };
+
+  const appUrl = window.location.origin;
+
+  const copyInvite = (code: string) => {
+    const msg = `You're invited to join the family on Gulli!\n\nOpen this link: ${appUrl}\nClick "Join the family" and enter your invite code: ${code}\n\nThe code expires in 7 days.`;
+    navigator.clipboard.writeText(msg);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(""), 2000);
+  };
+
+  const deleteUser = async (id: string, name: string) => {
+    if (!confirm(`Remove ${name} from the family? Their data will be kept.`)) return;
+    await api.deleteUser(id);
+    load();
+  };
+
+  const changeRole = async (id: string, role: string) => {
+    await api.updateUser(id, { role });
+    load();
+  };
+
+  const activeInvites = invites.filter((i) => !i.usedBy && new Date(i.expiresAt) > new Date());
+
+  return (
+    <div className="max-w-2xl space-y-5">
+      {/* Members */}
+      <div>
+        <p className="text-xs font-medium mb-3" style={{ color: "var(--text-muted)" }}>Family members ({users.length})</p>
+        <div className="space-y-2">
+          {users.map((u) => (
+            <div key={u.id} className="rounded-lg border p-3 flex items-center justify-between" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium" style={{ background: "var(--accent-bg)", color: "var(--accent)" }}>
+                  {u.name[0].toUpperCase()}
+                </div>
+                <div>
+                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{u.name}</span>
+                  {u.id === profile?.id && <span className="text-[10px] ml-1.5" style={{ color: "var(--text-muted)" }}>(you)</span>}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {u.id !== profile?.id ? (
+                  <select value={u.role} onChange={(e) => changeRole(u.id, e.target.value)}
+                    className="rounded border px-2 py-1 text-xs"
+                    style={{ background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--text-secondary)" }}>
+                    {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                ) : (
+                  <Badge color="amber">{ROLE_LABELS[u.role] || u.role}</Badge>
+                )}
+                {u.id !== profile?.id && (
+                  <button onClick={() => deleteUser(u.id, u.name)} className="text-[10px] px-2 py-1 rounded" style={{ color: "#f87171", border: "1px solid rgba(248,113,113,0.3)" }}>
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Invite */}
+      <Card>
+        <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-primary)" }}>Invite a family member</h3>
+        <div className="flex gap-2 mb-3">
+          <select value={newInviteRole} onChange={(e) => setNewInviteRole(e.target.value)}
+            className="rounded-md border px-3 py-2 text-sm"
+            style={{ background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--text-primary)" }}>
+            <option value="user">User</option>
+            <option value="superuser">Super User</option>
+            <option value="guest">Guest</option>
+          </select>
+          <Btn variant="primary" onClick={createInvite} disabled={creatingInvite}>
+            {creatingInvite ? "..." : "Generate invite"}
+          </Btn>
+        </div>
+
+        {/* Always show the app URL */}
+        <div className="rounded-md border px-3 py-2 mb-3 flex items-center justify-between" style={{ borderColor: "var(--border)", background: "var(--bg-input)" }}>
+          <div>
+            <p className="text-[10px] mb-0.5" style={{ color: "var(--text-muted)" }}>Family URL</p>
+            <span className="text-xs font-mono" style={{ color: "var(--accent)" }}>{appUrl}</span>
+          </div>
+          <button onClick={() => { navigator.clipboard.writeText(appUrl); }} className="text-[10px] px-2 py-1 rounded"
+            style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}>
+            Copy URL
+          </button>
+        </div>
+
+        {activeInvites.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-[10px] mb-1.5" style={{ color: "var(--text-muted)" }}>Active invites (valid 7 days)</p>
+            {activeInvites.map((inv) => (
+              <div key={inv.id} className="flex items-center justify-between rounded-md border px-3 py-2" style={{ borderColor: "var(--border)", background: "var(--bg-input)" }}>
+                <div>
+                  <span className="text-xs font-mono" style={{ color: "var(--text-primary)" }}>{inv.code}</span>
+                  <span className="text-[10px] ml-2" style={{ color: "var(--text-muted)" }}>{ROLE_LABELS[inv.role] || inv.role}</span>
+                </div>
+                <button onClick={() => copyInvite(inv.code)} className="text-[10px] px-2 py-1 rounded"
+                  style={{ background: copiedCode === inv.code ? "rgba(74,222,128,0.1)" : "var(--bg-card)", color: copiedCode === inv.code ? "#4ade80" : "var(--accent)", border: "1px solid var(--border)" }}>
+                  {copiedCode === inv.code ? "Copied!" : "Copy invite"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p className="text-[10px] mt-3" style={{ color: "var(--text-muted)" }}>
+          "Copy invite" copies a ready-to-send message with the URL and code.
+        </p>
       </Card>
     </div>
   );
@@ -393,16 +528,13 @@ function UpdateTab() {
     try {
       const r = await api.applyUpdate();
       setUpdateResult(r);
-      if (r.success) {
-        setTimeout(() => window.location.reload(), 5000);
-      }
+      if (r.success) setTimeout(() => window.location.reload(), 5000);
     } catch (e: any) { setUpdateResult({ success: false, error: e.message }); }
     finally { setUpdating(false); }
   };
 
   return (
     <div className="max-w-xl space-y-4">
-      {/* Current version */}
       <Card>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Current version</h3>
@@ -438,7 +570,6 @@ function UpdateTab() {
         )}
       </Card>
 
-      {/* Changelog */}
       {version?.changelog && (
         <Card>
           <h3 className="text-sm font-medium mb-3" style={{ color: "var(--text-primary)" }}>What's new</h3>

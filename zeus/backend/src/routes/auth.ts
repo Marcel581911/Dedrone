@@ -1,123 +1,73 @@
 import { FastifyInstance } from "fastify";
 import {
-  isOnboarded,
-  setupPassword,
-  verifyPassword,
-  createSession,
-  destroySession,
-  getVmAddress,
-  setVmAddress,
+  isSetup, createUser, findUserByName, verifyUserPassword,
+  createSession, destroySession, validateSession,
+  updateUserPassword, validateInviteCode, markInviteUsed,
 } from "../services/auth.js";
+import { provisionUserAgents } from "../services/user-provisioning.js";
 import { log } from "../logger.js";
 import { prisma } from "../db.js";
 
 export async function authRoutes(app: FastifyInstance) {
-  // Check if onboarding is complete
-  app.get("/api/auth/status", async () => {
-    const onboarded = await isOnboarded();
-    const vmAddress = await getVmAddress();
-    const settings = await prisma.setting.findMany({
-      where: { key: { in: ["user_name", "assistant_name", "assistant_personality", "user_city", "user_timezone"] } },
+  // Public: what state is the app in?
+  app.get("/api/auth/status", async (req) => {
+    const setup = await isSetup();
+    if (!setup) return { setup: false };
+
+    const token = req.cookies.zeus_session;
+    if (!token) return { setup: true, authenticated: false };
+
+    const session = validateSession(token);
+    if (!session) return { setup: true, authenticated: false };
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { id: true, name: true, role: true, city: true, timezone: true, assistantName: true, assistantPersonality: true },
     });
-    const profile: Record<string, string> = {};
-    for (const s of settings) profile[s.key] = s.value;
-    return { onboarded, vmAddress, ...profile };
+    if (!user) return { setup: true, authenticated: false };
+
+    return { setup: true, authenticated: true, user };
   });
 
-  // Onboarding: set password + VM address for the first time
-  app.post("/api/auth/onboard", async (req, reply) => {
-    const onboarded = await isOnboarded();
-    if (onboarded) {
-      return reply.status(400).send({ error: "Already onboarded. Use login instead." });
+  // Public: first-time family setup — creates admin account
+  app.post("/api/auth/setup", async (req, reply) => {
+    if (await isSetup()) {
+      return reply.status(400).send({ error: "Already set up. Please log in." });
     }
-
-    const { password, vmAddress, userName, assistantName, assistantPersonality, city, timezone } = req.body as {
-      password: string; vmAddress: string; userName?: string;
-      assistantName?: string; assistantPersonality?: string;
-      city?: string; timezone?: string;
+    const { name, password, assistantName, assistantPersonality, city, timezone } = req.body as {
+      name: string; password: string; assistantName?: string;
+      assistantPersonality?: string; city?: string; timezone?: string;
     };
-    if (!password || password.length < 4) {
-      return reply.status(400).send({ error: "Password must be at least 4 characters." });
-    }
-    if (!vmAddress) {
-      return reply.status(400).send({ error: "VM IP address is required." });
-    }
+    if (!name?.trim()) return reply.status(400).send({ error: "Name is required." });
+    if (!password || password.length < 4) return reply.status(400).send({ error: "Password must be at least 4 characters." });
 
-    await setupPassword(password);
-    await setVmAddress(vmAddress);
+    const user = await createUser({ name, password, role: "admin", city, timezone, assistantName, assistantPersonality });
+    await provisionUserAgents(user.id, user.assistantName, user.assistantPersonality, user.name);
 
-    // Save personalization
-    const personalSettings: [string, string][] = [
-      ["user_name", userName || ""],
-      ["assistant_name", assistantName || "Zeus"],
-      ["assistant_personality", assistantPersonality || ""],
-      ["user_city", city || ""],
-      ["user_timezone", timezone || Intl.DateTimeFormat().resolvedOptions().timeZone],
-    ];
-    for (const [key, value] of personalSettings) {
-      await prisma.setting.upsert({
-        where: { key },
-        update: { value },
-        create: { key, value },
-      });
-    }
-
-    // Update Orchestrator with personality
-    if (assistantName || assistantPersonality) {
-      const orchestrator = await prisma.agent.findUnique({ where: { id: "orchestrator-001" } });
-      if (orchestrator) {
-        let prompt = orchestrator.systemPrompt;
-        if (assistantName) {
-          prompt = prompt.replace(/You are the Orchestrator/, `You are ${assistantName}, the Orchestrator`);
-        }
-        if (assistantPersonality) {
-          prompt += `\n\n## Personality\n${assistantPersonality}`;
-        }
-        if (userName) {
-          prompt += `\n\n## User\nYour user's name is ${userName}. Address them by name when appropriate.`;
-        }
-        await prisma.agent.update({
-          where: { id: "orchestrator-001" },
-          data: { systemPrompt: prompt, name: assistantName || orchestrator.name },
-        });
-      }
-    }
-
-    const token = createSession();
-    reply.setCookie("zeus_session", token, {
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: 86400,
-    });
-
-    await log("info", "auth", `Onboarding completed for ${userName || "user"}`);
-    return { success: true, vmAddress };
+    const token = createSession(user.id);
+    reply.setCookie("zeus_session", token, { path: "/", httpOnly: true, sameSite: "lax", maxAge: 604800 });
+    await log("info", "auth", `Family setup complete — admin: ${user.name}`);
+    return { success: true, user: { id: user.id, name: user.name, role: user.role } };
   });
 
-  // Login
+  // Public: login
   app.post("/api/auth/login", async (req, reply) => {
-    const { password } = req.body as { password: string };
-    const valid = await verifyPassword(password);
+    const { name, password } = req.body as { name: string; password: string };
+    if (!name?.trim() || !password) return reply.status(400).send({ error: "Name and password are required." });
 
-    if (!valid) {
-      await log("warn", "auth", "Failed login attempt");
-      return reply.status(401).send({ error: "Invalid password." });
+    const user = await findUserByName(name.trim());
+    if (!user || !(await verifyUserPassword(user.id, password))) {
+      await log("warn", "auth", `Failed login: ${name}`);
+      return reply.status(401).send({ error: "Invalid name or password." });
     }
 
-    const token = createSession();
-    reply.setCookie("zeus_session", token, {
-      path: "/",
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: 86400,
-    });
-
-    await log("info", "auth", "Login successful");
-    return { success: true };
+    const token = createSession(user.id);
+    reply.setCookie("zeus_session", token, { path: "/", httpOnly: true, sameSite: "lax", maxAge: 604800 });
+    await log("info", "auth", `Login: ${user.name}`);
+    return { success: true, user: { id: user.id, name: user.name, role: user.role } };
   });
 
-  // Logout
+  // Public: logout
   app.post("/api/auth/logout", async (req, reply) => {
     const token = req.cookies.zeus_session;
     if (token) destroySession(token);
@@ -125,31 +75,48 @@ export async function authRoutes(app: FastifyInstance) {
     return { success: true };
   });
 
-  // Change password (requires current session)
-  app.put("/api/auth/password", async (req, reply) => {
-    const { currentPassword, newPassword } = req.body as {
-      currentPassword: string;
-      newPassword: string;
-    };
-
-    const valid = await verifyPassword(currentPassword);
-    if (!valid) {
-      return reply.status(401).send({ error: "Current password is incorrect." });
-    }
-
-    if (!newPassword || newPassword.length < 4) {
-      return reply.status(400).send({ error: "New password must be at least 4 characters." });
-    }
-
-    await setupPassword(newPassword);
-    await log("info", "auth", "Password changed");
-    return { success: true };
+  // Public: validate invite code before registering
+  app.get("/api/auth/invite/:code", async (req, reply) => {
+    const { code } = req.params as { code: string };
+    const invite = await validateInviteCode(code);
+    if (!invite) return reply.status(404).send({ error: "Invalid or expired invite code." });
+    return { valid: true, role: invite.role };
   });
 
-  // Update VM address
-  app.put("/api/auth/vm-address", async (req) => {
-    const { vmAddress } = req.body as { vmAddress: string };
-    await setVmAddress(vmAddress);
-    return { success: true, vmAddress };
+  // Public: register with invite code
+  app.post("/api/auth/register", async (req, reply) => {
+    const { code, name, password, assistantName, assistantPersonality, city, timezone } = req.body as {
+      code: string; name: string; password: string; assistantName?: string;
+      assistantPersonality?: string; city?: string; timezone?: string;
+    };
+
+    const invite = await validateInviteCode(code);
+    if (!invite) return reply.status(400).send({ error: "Invalid or expired invite code." });
+    if (!name?.trim()) return reply.status(400).send({ error: "Name is required." });
+    if (!password || password.length < 4) return reply.status(400).send({ error: "Min 4 characters." });
+
+    const existing = await findUserByName(name.trim());
+    if (existing) return reply.status(400).send({ error: "That name is already taken." });
+
+    const user = await createUser({ name, password, role: invite.role, city, timezone, assistantName, assistantPersonality });
+    await markInviteUsed(code, user.id);
+    await provisionUserAgents(user.id, user.assistantName, user.assistantPersonality, user.name);
+
+    const token = createSession(user.id);
+    reply.setCookie("zeus_session", token, { path: "/", httpOnly: true, sameSite: "lax", maxAge: 604800 });
+    await log("info", "auth", `New member joined: ${user.name} (${user.role})`);
+    return { success: true, user: { id: user.id, name: user.name, role: user.role } };
+  });
+
+  // Authenticated: change own password
+  app.put("/api/auth/password", async (req, reply) => {
+    const { currentPassword, newPassword } = req.body as { currentPassword: string; newPassword: string };
+    if (!(await verifyUserPassword(req.userId, currentPassword))) {
+      return reply.status(401).send({ error: "Current password is incorrect." });
+    }
+    if (!newPassword || newPassword.length < 4) return reply.status(400).send({ error: "Min 4 characters." });
+    await updateUserPassword(req.userId, newPassword);
+    await log("info", "auth", `Password changed for ${req.userId}`);
+    return { success: true };
   });
 }

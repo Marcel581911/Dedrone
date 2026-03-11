@@ -17,55 +17,74 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  authStatus: () => request<any>("/auth/status"),
-  onboard: (password: string, vmAddress: string, userName?: string, assistantName?: string, assistantPersonality?: string, city?: string, timezone?: string) =>
-    request<any>("/auth/onboard", { method: "POST", body: JSON.stringify({ password, vmAddress, userName, assistantName, assistantPersonality, city, timezone }) }),
-  login: (password: string) => request<any>("/auth/login", { method: "POST", body: JSON.stringify({ password }) }),
+  // Auth
+  authStatus: () => request<{ setup: boolean; authenticated?: boolean; user?: any }>("/auth/status"),
+  setup: (name: string, password: string, assistantName?: string, assistantPersonality?: string, city?: string, timezone?: string) =>
+    request<any>("/auth/setup", { method: "POST", body: JSON.stringify({ name, password, assistantName, assistantPersonality, city, timezone }) }),
+  login: (name: string, password: string) =>
+    request<any>("/auth/login", { method: "POST", body: JSON.stringify({ name, password }) }),
   logout: () => request<any>("/auth/logout", { method: "POST" }),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<any>("/auth/password", { method: "PUT", body: JSON.stringify({ currentPassword, newPassword }) }),
-  updateVmAddress: (vmAddress: string) => request<any>("/auth/vm-address", { method: "PUT", body: JSON.stringify({ vmAddress }) }),
+  validateInvite: (code: string) => request<any>(`/auth/invite/${code}`),
+  register: (code: string, name: string, password: string, assistantName?: string, assistantPersonality?: string, city?: string, timezone?: string) =>
+    request<any>("/auth/register", { method: "POST", body: JSON.stringify({ code, name, password, assistantName, assistantPersonality, city, timezone }) }),
 
+  // Users
+  getMe: () => request<any>("/users/me"),
+  updateMe: (data: any) => request<any>("/users/me", { method: "PUT", body: JSON.stringify(data) }),
+  getUsers: () => request<any[]>("/users"),
+  updateUser: (id: string, data: any) => request<any>(`/users/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteUser: (id: string) => request<any>(`/users/${id}`, { method: "DELETE" }),
+  createInvite: (role?: string) => request<any>("/invites", { method: "POST", body: JSON.stringify({ role }) }),
+  getInvites: () => request<any[]>("/invites"),
+
+  // Settings
   dashboard: () => request<any>("/dashboard"),
   getSettings: () => request<Record<string, string>>("/settings"),
   updateSettings: (data: Record<string, string>) => request<any>("/settings", { method: "PUT", body: JSON.stringify(data) }),
   testConnection: () => request<any>("/settings/test", { method: "POST" }),
 
+  // Agents
   getAgents: () => request<any[]>("/agents"),
   getAgent: (id: string) => request<any>(`/agents/${id}`),
   createAgent: (data: any) => request<any>("/agents", { method: "POST", body: JSON.stringify(data) }),
   updateAgent: (id: string, data: any) => request<any>(`/agents/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteAgent: (id: string) => request<any>(`/agents/${id}`, { method: "DELETE" }),
-
   assignSkill: (agentId: string, skillId: string) => request<any>(`/agents/${agentId}/skills`, { method: "POST", body: JSON.stringify({ skillId }) }),
   removeSkill: (agentId: string, skillId: string) => request<any>(`/agents/${agentId}/skills/${skillId}`, { method: "DELETE" }),
 
+  // Conversations
   getConversations: (agentId: string) => request<any[]>(`/agents/${agentId}/conversations`),
   createConversation: (agentId: string, title?: string) => request<any>(`/agents/${agentId}/conversations`, { method: "POST", body: JSON.stringify({ title }) }),
   getMessages: (conversationId: string) => request<any[]>(`/conversations/${conversationId}/messages`),
   chat: (agentId: string, conversationId: string, message: string) =>
     request<any>(`/agents/${agentId}/chat`, { method: "POST", body: JSON.stringify({ conversationId, message }) }),
 
+  // Memory
   getMemory: (agentId: string) => request<any[]>(`/agents/${agentId}/memory`),
   addMemory: (agentId: string, data: any) => request<any>(`/agents/${agentId}/memory`, { method: "POST", body: JSON.stringify(data) }),
 
+  // Tickets
   getTickets: (params?: Record<string, string>) => { const qs = params ? "?" + new URLSearchParams(params).toString() : ""; return request<any[]>(`/tickets${qs}`); },
   createTicket: (data: any) => request<any>("/tickets", { method: "POST", body: JSON.stringify(data) }),
   updateTicket: (id: string, data: any) => request<any>(`/tickets/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteTicket: (id: string) => request<any>(`/tickets/${id}`, { method: "DELETE" }),
   processTicket: () => request<any>("/tickets/process", { method: "POST" }),
 
+  // Skills
   getSkills: () => request<any[]>("/skills"),
   createSkill: (data: any) => request<any>("/skills", { method: "POST", body: JSON.stringify(data) }),
   updateSkill: (id: string, data: any) => request<any>(`/skills/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteSkill: (id: string) => request<any>(`/skills/${id}`, { method: "DELETE" }),
-
   getSkillGaps: () => request<any[]>("/skill-gaps"),
   generateStub: (id: string) => request<any>(`/skill-gaps/${id}/generate`, { method: "POST" }),
 
+  // Logs
   getLogs: (params?: Record<string, string>) => { const qs = params ? "?" + new URLSearchParams(params).toString() : ""; return request<any[]>(`/logs${qs}`); },
   clearLogs: () => request<any>("/logs", { method: "DELETE" }),
 
+  // Telegram
   telegramStatus: () => request<any>("/telegram/status"),
   telegramStart: () => request<any>("/telegram/start", { method: "POST" }),
   telegramStop: () => request<any>("/telegram/stop", { method: "POST" }),
@@ -73,6 +92,7 @@ export const api = {
   telegramPairings: () => request<any[]>("/telegram/pairings"),
   telegramUnpair: (id: string) => request<any>(`/telegram/pairings/${id}`, { method: "DELETE" }),
 
+  // Automations
   getAutomations: () => request<any[]>("/automations"),
   createAutomation: (data: any) => request<any>("/automations", { method: "POST", body: JSON.stringify(data) }),
   testAutomation: (id: string) => request<any>(`/automations/${id}/test`, { method: "POST" }),
@@ -81,6 +101,7 @@ export const api = {
   getScheduledTasks: () => request<any[]>("/scheduled-tasks"),
   updateScheduledTask: (id: string, data: any) => request<any>(`/scheduled-tasks/${id}`, { method: "PUT", body: JSON.stringify(data) }),
 
+  // Email
   getEmails: (params?: Record<string, string>) => { const qs = params ? "?" + new URLSearchParams(params).toString() : ""; return request<any[]>(`/emails${qs}`); },
   getEmail: (id: string) => request<any>(`/emails/${id}`),
   deleteEmail: (id: string) => request<any>(`/emails/${id}`, { method: "DELETE" }),
@@ -89,11 +110,11 @@ export const api = {
   testImap: () => request<any>("/emails/test-imap", { method: "POST" }),
   testSmtp: () => request<any>("/emails/test-smtp", { method: "POST" }),
 
+  // Modules
   getModules: () => request<any[]>("/modules"),
   installModule: (slug: string) => request<any>(`/modules/${slug}/install`, { method: "POST" }),
   uninstallModule: (slug: string) => request<any>(`/modules/${slug}/uninstall`, { method: "POST" }),
-  updateModuleConfig: (slug: string, config: Record<string, string>) =>
-    request<any>(`/modules/${slug}/config`, { method: "PUT", body: JSON.stringify(config) }),
+  updateModuleConfig: (slug: string, config: Record<string, string>) => request<any>(`/modules/${slug}/config`, { method: "PUT", body: JSON.stringify(config) }),
   activateModule: (slug: string) => request<any>(`/modules/${slug}/activate`, { method: "POST" }),
 
   // Reminders
@@ -128,11 +149,11 @@ export const api = {
   // Search
   search: (q: string) => request<any>(`/search?q=${encodeURIComponent(q)}`),
 
-  // Usage / Cost
+  // Usage
   getUsage: (period?: string) => request<any>(`/usage${period ? "?period=" + period : ""}`),
   setUsageLimit: (limit: number) => request<any>("/usage/limit", { method: "PUT", body: JSON.stringify({ limit }) }),
 
-  // Export / Backup
+  // Backup
   createBackup: () => request<any>("/backup", { method: "POST" }),
   getBackups: () => request<any>("/backups"),
   restoreBackup: (name: string) => request<any>(`/backup/restore/${name}`, { method: "POST" }),

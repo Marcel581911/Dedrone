@@ -2,19 +2,21 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../db.js";
 
 export async function reminderRoutes(app: FastifyInstance) {
-  app.get("/api/reminders", async () => {
-    return prisma.reminder.findMany({ orderBy: { dueAt: "asc" } });
+  app.get("/api/reminders", async (req) => {
+    return prisma.reminder.findMany({ where: { userId: req.userId }, orderBy: { dueAt: "asc" } });
   });
 
   app.post("/api/reminders", async (req) => {
     const { title, dueAt, recurring } = req.body as any;
     return prisma.reminder.create({
-      data: { title, dueAt: new Date(dueAt), recurring: recurring || "" },
+      data: { title, dueAt: new Date(dueAt), recurring: recurring || "", userId: req.userId },
     });
   });
 
-  app.put("/api/reminders/:id", async (req) => {
+  app.put("/api/reminders/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
+    const reminder = await prisma.reminder.findFirst({ where: { id, userId: req.userId } });
+    if (!reminder) return reply.status(404).send({ error: "Reminder not found." });
     const body = req.body as any;
     const data: any = {};
     if (body.title !== undefined) data.title = body.title;
@@ -24,8 +26,10 @@ export async function reminderRoutes(app: FastifyInstance) {
     return prisma.reminder.update({ where: { id }, data });
   });
 
-  app.delete("/api/reminders/:id", async (req) => {
+  app.delete("/api/reminders/:id", async (req, reply) => {
     const { id } = req.params as { id: string };
+    const reminder = await prisma.reminder.findFirst({ where: { id, userId: req.userId } });
+    if (!reminder) return reply.status(404).send({ error: "Reminder not found." });
     await prisma.reminder.delete({ where: { id } });
     return { success: true };
   });

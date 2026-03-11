@@ -3,9 +3,11 @@ import { api } from "../api";
 import { Badge, Btn } from "../components/ui";
 import { Link } from "react-router-dom";
 
-export default function Home() {
+interface Props { profile?: any; }
+
+export default function Home({ profile }: Props) {
   const [agentId, setAgentId] = useState<string | null>(null);
-  const [agentName, setAgentName] = useState("Zeus");
+  const [agentName, setAgentName] = useState("Gulli");
   const [convs, setConvs] = useState<any[]>([]);
   const [activeConv, setActiveConv] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -25,7 +27,9 @@ export default function Home() {
   useEffect(() => {
     api.checkUpdate().then((r) => setUpdateAvailable(!r.upToDate && !r.error)).catch(() => {});
     api.getAgents().then(async (agents) => {
-      const orch = agents.find((a: any) => a.id === "orchestrator-001") || agents.find((a: any) => a.role === "Coordinator");
+      const orch = agents.find((a: any) => profile?.id && a.userId === profile.id && a.role === "Coordinator")
+        || agents.find((a: any) => a.role === "Coordinator")
+        || agents.find((a: any) => a.id === "orchestrator-001");
       if (orch) {
         setAgentId(orch.id);
         setAgentName(orch.name);
@@ -185,7 +189,7 @@ export default function Home() {
                         placeholder="City name..."
                         onKeyDown={async (e) => {
                           if (e.key === "Enter" && cityInput.trim()) {
-                            await api.updateSettings({ user_city: cityInput.trim() });
+                            await api.updateMe({ city: cityInput.trim() });
                             setEditingCity(false);
                             api.getWeather().then(setWeather);
                           }
@@ -225,7 +229,7 @@ export default function Home() {
                       placeholder="Enter your city..."
                       onKeyDown={async (e) => {
                         if (e.key === "Enter" && cityInput.trim()) {
-                          await api.updateSettings({ user_city: cityInput.trim() });
+                          await api.updateMe({ city: cityInput.trim() });
                           setEditingCity(false);
                           api.getWeather().then(setWeather);
                         }
@@ -248,9 +252,14 @@ export default function Home() {
           {messages.length === 0 && activeConv && (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <p className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>Ask {agentName} anything</p>
+                <p className="text-sm mb-1" style={{ color: "var(--text-muted)" }}>Brief {agentName} on the next R&D task</p>
                 <div className="flex flex-wrap gap-2 justify-center mt-3">
-                  {["What's on my plate today?", "Add a task: buy groceries", "Remind me to call Mom at 6pm", "What happened this week?"].map((s) => (
+                  {[
+                    "Draft an experiment plan to validate feature X",
+                    "Break down this spec into independent agent tasks",
+                    "Review this design for risks and edge cases",
+                    "Summarize blockers across all active tickets",
+                  ].map((s) => (
                     <button key={s} onClick={() => setInput(s)} className="text-xs px-3 py-1.5 rounded-full border transition-colors hover:border-[var(--accent)]"
                       style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>{s}</button>
                   ))}

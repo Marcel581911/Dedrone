@@ -5,25 +5,37 @@ const GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search";
 const WEATHER_URL = "https://api.open-meteo.com/v1/forecast";
 
 export async function weatherRoutes(app: FastifyInstance) {
-  app.get("/api/weather", async () => {
-    const citySetting = await prisma.setting.findUnique({ where: { key: "user_city" } });
-    const city = citySetting?.value;
+  app.get("/api/weather", async (req) => {
+    // Try user profile city first, fall back to global setting
+    let city: string | undefined;
+    let timezone: string | undefined;
+
+    if (req.userId) {
+      const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { city: true, timezone: true } });
+      city = user?.city || undefined;
+      timezone = user?.timezone || undefined;
+    }
+
+    if (!city) {
+      const citySetting = await prisma.setting.findUnique({ where: { key: "user_city" } });
+      city = citySetting?.value || undefined;
+    }
     if (!city) return { configured: false };
 
+    if (!timezone) {
+      const tzSetting = await prisma.setting.findUnique({ where: { key: "user_timezone" } });
+      timezone = tzSetting?.value || "auto";
+    }
+
     try {
-      // Geocode city name to coordinates
       const geoRes = await fetch(`${GEOCODE_URL}?name=${encodeURIComponent(city)}&count=1&language=en`);
       const geoData = await geoRes.json() as any;
       if (!geoData.results?.length) return { configured: true, error: "City not found" };
 
       const { latitude, longitude, name, country } = geoData.results[0];
 
-      // Get current weather
-      const tzSetting = await prisma.setting.findUnique({ where: { key: "user_timezone" } });
-      const tz = tzSetting?.value || "auto";
-
       const wxRes = await fetch(
-        `${WEATHER_URL}?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=${encodeURIComponent(tz)}&forecast_days=3`
+        `${WEATHER_URL}?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=${encodeURIComponent(timezone)}&forecast_days=3`
       );
       const wx = await wxRes.json() as any;
 

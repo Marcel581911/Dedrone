@@ -2,6 +2,7 @@
 process.on("uncaughtException", (err) => { console.error("[ZEUS] Uncaught exception:", err.message); });
 process.on("unhandledRejection", (err: any) => { console.error("[ZEUS] Unhandled rejection:", err?.message || err); });
 
+import "./types.js";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
@@ -17,6 +18,7 @@ import { logRoutes } from "./routes/logs.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
 import { telegramRoutes } from "./routes/telegram.js";
 import { authRoutes } from "./routes/auth.js";
+import { userRoutes } from "./routes/users.js";
 import { automationRoutes } from "./routes/automations.js";
 import { emailRoutes } from "./routes/email.js";
 import { moduleRoutes } from "./routes/modules.js";
@@ -36,7 +38,7 @@ import { log } from "./logger.js";
 import { startWorker } from "./services/worker.js";
 import { startBot } from "./services/telegram.js";
 import { startScheduler } from "./services/scheduler.js";
-import { validateSession, isOnboarded } from "./services/auth.js";
+import { isSetup, validateSession } from "./services/auth.js";
 import { prisma } from "./db.js";
 
 const app = Fastify({ logger: false });
@@ -45,33 +47,60 @@ await app.register(cors, { origin: true, credentials: true });
 await app.register(cookie);
 await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } });
 
-// Auth middleware — protect /api/* except /api/auth/*
+// Public auth paths — no session required
+function isPublicPath(url: string): boolean {
+  const path = url.split("?")[0];
+  return (
+    path === "/api/auth/status" ||
+    path === "/api/auth/login" ||
+    path === "/api/auth/setup" ||
+    path === "/api/auth/register" ||
+    path === "/api/auth/logout" ||
+    path.startsWith("/api/auth/invite/")
+  );
+}
+
+// Auth middleware
 app.addHook("onRequest", async (req, reply) => {
   if (!req.url.startsWith("/api/")) return;
-  if (req.url.startsWith("/api/auth/")) return;
+  if (isPublicPath(req.url)) return;
 
-  const onboarded = await isOnboarded();
-  if (!onboarded) {
-    reply.status(403).send({ error: "not_onboarded" });
+  const setup = await isSetup();
+  if (!setup) {
+    reply.status(403).send({ error: "not_setup" });
     return;
   }
 
   const token = req.cookies.zeus_session;
-  if (!token || !validateSession(token)) {
+  if (!token) {
     reply.status(401).send({ error: "not_authenticated" });
     return;
   }
+
+  const session = validateSession(token);
+  if (!session) {
+    reply.status(401).send({ error: "not_authenticated" });
+    return;
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: session.userId } });
+  if (!user) {
+    reply.status(401).send({ error: "not_authenticated" });
+    return;
+  }
+
+  req.userId = user.id;
+  req.userRole = user.role;
 });
 
 app.setErrorHandler((error, _request, reply) => {
   console.error(error);
-  reply.status(error.statusCode || 500).send({
-    error: error.message || "Internal Server Error",
-  });
+  reply.status(error.statusCode || 500).send({ error: error.message || "Internal Server Error" });
 });
 
 // API routes
 await app.register(authRoutes);
+await app.register(userRoutes);
 await app.register(settingsRoutes);
 await app.register(agentRoutes);
 await app.register(ticketRoutes);
@@ -98,22 +127,14 @@ await app.register(updateRoutes);
 // Serve frontend build (production mode)
 const frontendDist = path.resolve(import.meta.dirname, "../../frontend/dist");
 if (fs.existsSync(frontendDist)) {
-  await app.register(fastifyStatic, {
-    root: frontendDist,
-    prefix: "/",
-    wildcard: false,
-  });
-
+  await app.register(fastifyStatic, { root: frontendDist, prefix: "/", wildcard: false });
   app.setNotFoundHandler(async (req, reply) => {
-    if (req.url.startsWith("/api/")) {
-      return reply.status(404).send({ error: "Not found" });
-    }
+    if (req.url.startsWith("/api/")) return reply.status(404).send({ error: "Not found" });
     return reply.sendFile("index.html");
   });
-
   console.log(`📂 Serving frontend from ${frontendDist}`);
 } else {
-  console.log("📂 No frontend build found — run 'pnpm build' or use 'pnpm dev' for development");
+  console.log("📂 No frontend build found — run 'pnpm build' or use 'pnpm dev'");
 }
 
 const PORT = parseInt(process.env.PORT || "3000");
@@ -129,9 +150,7 @@ try {
   const tgToken = await prisma.setting.findUnique({ where: { key: "telegram_bot_token" } });
   if (tgToken?.value) {
     const result = await startBot();
-    if (!result.success) {
-      console.log(`📱 Telegram bot failed to auto-start: ${result.error}`);
-    }
+    if (!result.success) console.log(`📱 Telegram bot failed to start: ${result.error}`);
   } else {
     console.log("📱 Telegram bot: no token configured (add in Settings)");
   }
