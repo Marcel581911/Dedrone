@@ -1,0 +1,55 @@
+# ZEUS — Caddyfile for zeu-s.cloud
+# Auto-HTTPS via Let's Encrypt (no config needed)
+#
+# After editing: sudo systemctl reload caddy
+# Logs:          sudo journalctl -u caddy -f
+# Validate:      sudo caddy validate --config /etc/caddy/Caddyfile
+#
+# DNS records required (add in your registrar):
+#   A   @   →  <your VM IP>      (portal at zeu-s.cloud)
+#   A   *   →  <your VM IP>      (wildcard — covers all workspaces)
+#
+# ── Portal (workspace selector) ──────────────────────────────────────────────
+zeu-s.cloud {
+    reverse_proxy localhost:3000
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options nosniff
+        X-Frame-Options SAMEORIGIN
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    encode gzip
+
+    log {
+        output file /var/log/caddy/zeus-portal.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+}
+
+# ── Workspaces ────────────────────────────────────────────────────────────────
+# Each workspace gets its own subdomain.
+# Add a block here for every workspace created with install.sh.
+# Run scripts/setup-domain.sh to auto-generate these from instances/.
+#
+# Example (uncomment and adjust port):
+#
+# john.zeu-s.cloud {
+#     reverse_proxy localhost:3001
+#     header {
+#         Strict-Transport-Security "max-age=31536000; includeSubDomains"
+#         X-Content-Type-Options nosniff
+#         X-Frame-Options SAMEORIGIN
+#         Referrer-Policy strict-origin-when-cross-origin
+#     }
+#     encode gzip
+#     log {
+#         output file /var/log/caddy/zeus-john.log {
+#             roll_size 10mb
+#             roll_keep 5
+#         }
+#     }
+# }

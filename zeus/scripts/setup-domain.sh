@@ -33,9 +33,11 @@ echo -e "  VM public IP: ${BOLD}${VM_IP}${NC}"
 echo ""
 
 # ── 1. Get domain ─────────────────────────────────────────────────────────────
-read -p "  Enter your domain (e.g. gulli.io or yourdomain.com): " DOMAIN
-DOMAIN=$(echo "$DOMAIN" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+DEFAULT_DOMAIN="zeu-s.cloud"
+read -p "  Domain [${DEFAULT_DOMAIN}]: " DOMAIN_INPUT
+DOMAIN=$(echo "${DOMAIN_INPUT:-$DEFAULT_DOMAIN}" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
 if [ -z "$DOMAIN" ]; then echo -e "${RED}No domain provided. Exiting.${NC}"; exit 1; fi
+echo -e "  Using domain: ${BOLD}${DOMAIN}${NC}"
 
 echo ""
 echo -e "${CYAN}[1] DNS records to add BEFORE continuing${NC}"
