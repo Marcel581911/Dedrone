@@ -713,9 +713,9 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
 
   // ── Household / Family skills ──────────────────────────────────────────────
   get_household_context: async (_args, userId) => {
-    const { getUserHouseholdId, getHouseholdMembers } = await import("./household.js");
-    const householdId = await getUserHouseholdId(userId);
-    if (!householdId) return { success: false, data: {}, message: "No household set up. The admin needs to complete setup first." };
+    const { getUserHouseholdId, getHouseholdMembers, provisionHousehold } = await import("./household.js");
+    let householdId = await getUserHouseholdId(userId);
+    if (!householdId) householdId = await provisionHousehold(userId);
 
     const now = new Date();
     const in7days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -766,9 +766,9 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
 
     if (!memberName || !title) return { success: false, data: {}, message: "memberName and title are required." };
 
-    const { getUserHouseholdId } = await import("./household.js");
-    const householdId = await getUserHouseholdId(userId);
-    if (!householdId) return { success: false, data: {}, message: "No household set up." };
+    const { getUserHouseholdId, provisionHousehold } = await import("./household.js");
+    let householdId = await getUserHouseholdId(userId);
+    if (!householdId) householdId = await provisionHousehold(userId);
 
     const member = await prisma.user.findFirst({
       where: { name: { contains: memberName, mode: "insensitive" }, householdMemberships: { some: { householdId } } },
@@ -808,9 +808,9 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
     const startAt  = args.startAt ? new Date(String(args.startAt)) : null;
     if (!title || !startAt) return { success: false, data: {}, message: "title and startAt are required." };
 
-    const { getUserHouseholdId, getHouseholdMembers } = await import("./household.js");
-    const householdId = await getUserHouseholdId(userId);
-    if (!householdId) return { success: false, data: {}, message: "No household set up." };
+    const { getUserHouseholdId, getHouseholdMembers, provisionHousehold } = await import("./household.js");
+    let householdId = await getUserHouseholdId(userId);
+    if (!householdId) householdId = await provisionHousehold(userId);
 
     const event = await prisma.calendarEvent.create({
       data: {
@@ -846,9 +846,9 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
 
     if (!title) return { success: false, data: {}, message: "title is required." };
 
-    const { getUserHouseholdId, getHouseholdMembers } = await import("./household.js");
-    const householdId = await getUserHouseholdId(userId);
-    if (!householdId) return { success: false, data: {}, message: "No household set up." };
+    const { getUserHouseholdId, getHouseholdMembers, provisionHousehold } = await import("./household.js");
+    let householdId = await getUserHouseholdId(userId);
+    if (!householdId) householdId = await provisionHousehold(userId);
 
     let assignedAgentId: string | null = null;
     let assignedUserId: string | null = null;
@@ -889,9 +889,9 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
 
     if (!name) return { success: false, data: {}, message: "name is required." };
 
-    const { getUserHouseholdId } = await import("./household.js");
-    const householdId = await getUserHouseholdId(userId);
-    if (!householdId) return { success: false, data: {}, message: "No household set up." };
+    const { getUserHouseholdId, provisionHousehold } = await import("./household.js");
+    let householdId = await getUserHouseholdId(userId);
+    if (!householdId) householdId = await provisionHousehold(userId);
 
     const item = await prisma.shoppingItem.create({
       data: { name, quantity, category, notes, priority, userId, householdId, addedBy: "agent" },
@@ -901,9 +901,9 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
   },
 
   get_household_shopping_list: async (_args, userId) => {
-    const { getUserHouseholdId } = await import("./household.js");
-    const householdId = await getUserHouseholdId(userId);
-    if (!householdId) return { success: false, data: {}, message: "No household set up." };
+    const { getUserHouseholdId, provisionHousehold } = await import("./household.js");
+    let householdId = await getUserHouseholdId(userId);
+    if (!householdId) householdId = await provisionHousehold(userId);
 
     const items = await prisma.shoppingItem.findMany({
       where: { householdId, status: "pending" },
