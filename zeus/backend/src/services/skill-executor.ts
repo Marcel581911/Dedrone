@@ -502,6 +502,29 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
     };
   },
 
+  update_poi: async (args, userId) => {
+    const poiId = String(args.poiId || "");
+    if (!poiId) return { success: false, data: {}, message: "poiId is required." };
+    const poi = await prisma.pOI.findUnique({ where: { id: poiId } });
+    if (!poi || poi.userId !== userId) return { success: false, data: {}, message: `POI ${poiId} not found.` };
+
+    const data: any = {};
+    if (args.name !== undefined) data.name = String(args.name);
+    if (args.country !== undefined) data.country = String(args.country);
+    if (args.city !== undefined) data.city = String(args.city);
+    if (args.category !== undefined) data.category = String(args.category);
+    if (args.address !== undefined) data.address = String(args.address);
+    if (args.notes !== undefined) data.notes = String(args.notes);
+    if (args.visitedAt !== undefined) data.visitedAt = new Date(String(args.visitedAt));
+
+    await prisma.pOI.update({ where: { id: poiId }, data });
+    return {
+      success: true,
+      data: { poiId },
+      message: `"${poi.name}" updated — ${Object.keys(data).join(", ")} set.`,
+    };
+  },
+
   get_weather: async (_args, userId) => {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { city: true, timezone: true } });
     if (!user?.city) {
@@ -577,25 +600,20 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
 
   get_poi_memory: async (args, userId) => {
     const where: any = { userId };
-    if (args.country) where.country = { contains: String(args.country) };
-    if (args.city) where.city = { contains: String(args.city) };
+    if (args.country) where.country = { contains: String(args.country), mode: "insensitive" };
+    if (args.city) where.city = { contains: String(args.city), mode: "insensitive" };
     if (args.category) where.category = String(args.category);
-    const pois = await prisma.pOI.findMany({ where, orderBy: { visitedAt: "desc" }, take: 30 });
+    if (args.missingCountry) where.country = { in: ["", null] };
+    const pois = await prisma.pOI.findMany({ where, orderBy: { visitedAt: "desc" }, take: 50 });
     if (pois.length === 0) {
       const hint = args.country || args.city ? ` in ${args.city || ""}${args.city && args.country ? ", " : ""}${args.country || ""}` : "";
-      return { success: true, data: { pois: [] }, message: `No places in memory${hint}. Use add_poi to save visited places.` };
+      return { success: true, data: { pois: [] }, message: `No places in memory${hint}.` };
     }
-    const grouped: Record<string, string[]> = {};
-    for (const p of pois) {
-      const key = [p.city, p.country].filter(Boolean).join(", ") || "Unknown";
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(`${p.name} (${p.category})`);
-    }
-    const lines = Object.entries(grouped).map(([loc, places]) => `  ${loc}: ${places.join(", ")}`);
+    const lines = pois.map((p) => `- poiId:${p.id} | "${p.name}" | city:${p.city || "?"} | country:${p.country || "MISSING"} | category:${p.category}`);
     return {
       success: true,
-      data: { pois: pois.map((p) => ({ id: p.id, name: p.name, city: p.city, country: p.country, category: p.category })) },
-      message: `Places visited (${pois.length}):\n${lines.join("\n")}`,
+      data: { pois: pois.map((p) => ({ poiId: p.id, name: p.name, city: p.city, country: p.country, category: p.category })) },
+      message: `Places (${pois.length}):\n${lines.join("\n")}`,
     };
   },
 

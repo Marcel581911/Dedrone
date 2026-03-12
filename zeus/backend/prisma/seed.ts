@@ -176,10 +176,13 @@ async function main() {
     { eventId: { type: "string", description: "TripEvent ID" }, flightNumber: { type: "string", description: "IATA flight number (e.g. UA123)" } });
 
   await upsertSkill("add_poi", "Save a place you visited or want to remember to your travel memory.",
-    { name: { type: "string" }, city: { type: "string" }, country: { type: "string" }, category: { type: "string", enum: ["restaurant", "cafe", "museum", "hotel", "attraction", "park", "shopping", "transport", "other"] }, address: { type: "string" }, notes: { type: "string" }, visitedAt: { type: "string" } }, ["name"]);
+    { name: { type: "string" }, city: { type: "string" }, country: { type: "string" }, category: { type: "string", enum: ["restaurant", "cafe", "museum", "hotel", "attraction", "park", "shopping", "transport", "unesco site", "winery", "landmark", "dive site", "other"] }, address: { type: "string" }, notes: { type: "string" }, visitedAt: { type: "string" } }, ["name"]);
 
-  await upsertSkill("get_poi_memory", "Get the list of places you have visited, optionally filtered by country, city, or category.",
-    { country: { type: "string" }, city: { type: "string" }, category: { type: "string" } });
+  await upsertSkill("update_poi", "Update an existing place in travel memory (country, city, category, name, address, notes). Get poiId from get_poi_memory first.",
+    { poiId: { type: "string" }, name: { type: "string" }, country: { type: "string" }, city: { type: "string" }, category: { type: "string", enum: ["restaurant", "cafe", "museum", "hotel", "attraction", "park", "shopping", "transport", "unesco site", "winery", "landmark", "dive site", "other"] }, address: { type: "string" }, notes: { type: "string" } }, ["poiId"]);
+
+  await upsertSkill("get_poi_memory", "Get the list of places you have visited, optionally filtered by country, city, or category. Returns poiId for each place. Set missingCountry=true to get only places with no country set.",
+    { country: { type: "string" }, city: { type: "string" }, category: { type: "string" }, missingCountry: { type: "boolean" } });
 
   // Specialist activation skill
   await upsertSkill(
