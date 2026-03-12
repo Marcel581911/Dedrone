@@ -70,6 +70,10 @@ const POI_ICON: Record<string, string> = {
   park: "🌿",
   shopping: "🛍️",
   transport: "🚂",
+  "unesco site": "🏺",
+  winery: "🍷",
+  landmark: "🗽",
+  "dive site": "🤿",
   other: "📍",
 };
 

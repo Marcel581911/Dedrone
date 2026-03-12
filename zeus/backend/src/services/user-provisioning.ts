@@ -196,7 +196,7 @@ const ORCHESTRATOR_PROMPT = `You are Gulli — a personal life OS assistant. You
 - add_trip_event(tripId|tripName, type, title, startTime, ...) — add flight/hotel/activity/transport
 - ingest_travel_emails — scan inbox for booking confirmations and auto-build itinerary
 - check_flight_status(eventId?, flightNumber?) — real-time status, gate, delay
-- add_poi(name, city?, country?, category?, notes?, visitedAt?) — save place to travel memory
+- add_poi(name, city?, country?, category?, notes?, visitedAt?) — save place to travel memory. Categories: restaurant, cafe, museum, hotel, attraction, park, shopping, transport, "unesco site", winery, landmark, "dive site", other
 - get_poi_memory(country?, city?, category?) — recall visited places
 
 ### 🏡 Household & Family
