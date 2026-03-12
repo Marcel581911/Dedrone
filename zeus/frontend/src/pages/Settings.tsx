@@ -105,11 +105,11 @@ function ConnectionsTab() {
       </Card>
 
       <Card>
-        <h3 className="text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>Flight Tracking (AeroAPI)</h3>
+        <h3 className="text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>Flight Tracking (AirLabs)</h3>
         <p className="text-[10px] mb-3" style={{ color: "var(--text-muted)" }}>
-          Get your API key at <span style={{ color: "var(--accent)" }}>flightaware.com/aeroapi</span>. Enables real-time flight delay and cancellation alerts.
+          Get your API key at <span style={{ color: "var(--accent)" }}>airlabs.co</span>. Enables real-time flight delay and cancellation alerts.
         </p>
-        <div><Label>API Key</Label><Input type="password" value={flightApiKey} onChange={(e) => setFlightApiKey(e.target.value)} placeholder={settings.flight_api_key || "Enter AeroAPI key..."} /></div>
+        <div><Label>API Key</Label><Input type="password" value={flightApiKey} onChange={(e) => setFlightApiKey(e.target.value)} placeholder={settings.flight_api_key || "Enter AirLabs key..."} /></div>
       </Card>
 
       <Btn variant="primary" onClick={save} disabled={saving}>{saving ? "..." : "Save All"}</Btn>
