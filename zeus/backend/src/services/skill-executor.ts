@@ -502,6 +502,99 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
     };
   },
 
+  fix_poi_countries: async (_args, userId) => {
+    // Fetch all POIs with missing or empty country
+    const pois = await prisma.pOI.findMany({
+      where: { userId, OR: [{ country: "" }, { country: null }] },
+      select: { id: true, name: true, city: true, category: true },
+      orderBy: { id: "asc" },
+      take: 200,
+    });
+
+    if (pois.length === 0) {
+      return { success: true, data: { updated: 0 }, message: "All places already have a country — nothing to fix." };
+    }
+
+    // City → country lookup (covers common travel destinations)
+    const CITY_COUNTRY: Record<string, string> = {
+      // France
+      "sancerre": "France", "chavignol": "France", "bourges": "France", "paris": "France",
+      "lyon": "France", "marseille": "France", "bordeaux": "France", "nice": "France",
+      "toulouse": "France", "strasbourg": "France", "nantes": "France", "montpellier": "France",
+      "rennes": "France", "reims": "France", "saint-tropez": "France", "cannes": "France",
+      "annecy": "France", "chamonix": "France", "colmar": "France", "avignon": "France",
+      "dijon": "France", "grenoble": "France", "tours": "France", "poitiers": "France",
+      // Cyprus
+      "paphos": "Cyprus", "pafos": "Cyprus", "limassol": "Cyprus", "lemesos": "Cyprus",
+      "nicosia": "Cyprus", "lefkosia": "Cyprus", "larnaca": "Cyprus", "larnaka": "Cyprus",
+      "famagusta": "Cyprus", "kyrenia": "Cyprus",
+      // Italy
+      "rome": "Italy", "roma": "Italy", "milan": "Italy", "milano": "Italy",
+      "venice": "Italy", "venezia": "Italy", "florence": "Italy", "firenze": "Italy",
+      "naples": "Italy", "napoli": "Italy", "turin": "Italy", "torino": "Italy",
+      "palermo": "Italy", "bologna": "Italy", "amalfi": "Italy", "positano": "Italy",
+      "siena": "Italy", "cinque terre": "Italy", "lake como": "Italy", "taormina": "Italy",
+      // Spain
+      "barcelona": "Spain", "madrid": "Spain", "seville": "Spain", "sevilla": "Spain",
+      "granada": "Spain", "valencia": "Spain", "bilbao": "Spain", "san sebastián": "Spain",
+      "mallorca": "Spain", "ibiza": "Spain", "toledo": "Spain",
+      // Portugal
+      "lisbon": "Portugal", "lisboa": "Portugal", "porto": "Portugal", "faro": "Portugal",
+      "sintra": "Portugal", "algarve": "Portugal",
+      // UK
+      "london": "United Kingdom", "edinburgh": "United Kingdom", "manchester": "United Kingdom",
+      "oxford": "United Kingdom", "cambridge": "United Kingdom", "bath": "United Kingdom",
+      // Greece
+      "athens": "Greece", "athina": "Greece", "santorini": "Greece", "mykonos": "Greece",
+      "thessaloniki": "Greece", "crete": "Greece", "rhodes": "Greece",
+      // Thailand
+      "bangkok": "Thailand", "phuket": "Thailand", "chiang mai": "Thailand",
+      "koh samui": "Thailand", "pattaya": "Thailand", "krabi": "Thailand",
+      // Japan
+      "tokyo": "Japan", "kyoto": "Japan", "osaka": "Japan", "hiroshima": "Japan",
+      "nara": "Japan", "sapporo": "Japan", "fukuoka": "Japan",
+      // Morocco
+      "marrakech": "Morocco", "fes": "Morocco", "fez": "Morocco", "casablanca": "Morocco",
+      "rabat": "Morocco", "essaouira": "Morocco", "chefchaouen": "Morocco",
+      // USA
+      "new york": "United States", "los angeles": "United States", "miami": "United States",
+      "san francisco": "United States", "las vegas": "United States", "chicago": "United States",
+      "new orleans": "United States", "hawaii": "United States",
+      // Others
+      "amsterdam": "Netherlands", "berlin": "Germany", "munich": "Germany", "hamburg": "Germany",
+      "vienna": "Austria", "prague": "Czech Republic", "budapest": "Hungary",
+      "dubrovnik": "Croatia", "split": "Croatia", "lisbon": "Portugal",
+      "dubai": "UAE", "abu dhabi": "UAE", "istanbul": "Turkey", "cappadocia": "Turkey",
+      "cairo": "Egypt", "luxor": "Egypt", "bali": "Indonesia", "ubud": "Indonesia",
+      "singapore": "Singapore", "hong kong": "Hong Kong", "seoul": "South Korea",
+      "sydney": "Australia", "melbourne": "Australia", "auckland": "New Zealand",
+      "cape town": "South Africa", "nairobi": "Kenya", "zanzibar": "Tanzania",
+      "maldives": "Maldives", "colombo": "Sri Lanka", "kathmandu": "Nepal",
+      "havana": "Cuba", "buenos aires": "Argentina", "rio de janeiro": "Brazil",
+      "sao paulo": "Brazil", "lima": "Peru", "cartagena": "Colombia", "mexico city": "Mexico",
+    };
+
+    const updated: string[] = [];
+    const skipped: string[] = [];
+
+    for (const poi of pois) {
+      const cityKey = (poi.city || "").toLowerCase().trim();
+      const country = CITY_COUNTRY[cityKey];
+      if (country) {
+        await prisma.pOI.update({ where: { id: poi.id }, data: { country } });
+        updated.push(`"${poi.name}" (${poi.city}) → ${country}`);
+      } else {
+        skipped.push(`"${poi.name}" (city: ${poi.city || "unknown"})`);
+      }
+    }
+
+    let msg = `Fixed ${updated.length} place(s):\n${updated.join("\n")}`;
+    if (skipped.length > 0) {
+      msg += `\n\nCould not auto-detect country for ${skipped.length} place(s) — city not recognised:\n${skipped.join("\n")}`;
+    }
+    return { success: true, data: { updated: updated.length, skipped: skipped.length }, message: msg };
+  },
+
   update_poi: async (args, userId) => {
     const poiId = String(args.poiId || "");
     if (!poiId) return { success: false, data: {}, message: "poiId is required." };

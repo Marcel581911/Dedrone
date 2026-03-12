@@ -178,6 +178,8 @@ async function main() {
   await upsertSkill("add_poi", "Save a place you visited or want to remember to your travel memory.",
     { name: { type: "string" }, city: { type: "string" }, country: { type: "string" }, category: { type: "string", enum: ["restaurant", "cafe", "museum", "hotel", "attraction", "park", "shopping", "transport", "unesco site", "winery", "landmark", "dive site", "other"] }, address: { type: "string" }, notes: { type: "string" }, visitedAt: { type: "string" } }, ["name"]);
 
+  await upsertSkill("fix_poi_countries", "Automatically detect and fill in the country for ALL places that have a missing country, based on city name. Run this when asked to fix missing countries.", {});
+
   await upsertSkill("update_poi", "Update an existing place in travel memory (country, city, category, name, address, notes). Get poiId from get_poi_memory first.",
     { poiId: { type: "string" }, name: { type: "string" }, country: { type: "string" }, city: { type: "string" }, category: { type: "string", enum: ["restaurant", "cafe", "museum", "hotel", "attraction", "park", "shopping", "transport", "unesco site", "winery", "landmark", "dive site", "other"] }, address: { type: "string" }, notes: { type: "string" } }, ["poiId"]);
 

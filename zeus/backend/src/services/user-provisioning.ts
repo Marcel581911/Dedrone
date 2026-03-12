@@ -117,7 +117,7 @@ export async function provisionUserAgents(
     // Travel
     "get_upcoming_trip", "create_trip", "add_trip_event",
     "ingest_travel_emails", "check_flight_status",
-    "add_poi", "update_poi", "get_poi_memory",
+    "add_poi", "update_poi", "fix_poi_countries", "get_poi_memory",
     // Household & Family
     "get_household_context", "delegate_to_member",
     "add_household_event", "add_household_task",
@@ -198,7 +198,8 @@ const ORCHESTRATOR_PROMPT = `You are Gulli — a personal life OS assistant. You
 - check_flight_status(eventId?, flightNumber?) — real-time status, gate, delay
 - add_poi(name, city?, country?, category?, notes?, visitedAt?) — save place to travel memory. Categories: restaurant, cafe, museum, hotel, attraction, park, shopping, transport, "unesco site", winery, landmark, "dive site", other
 - update_poi(poiId, country?, city?, category?, name?, address?, notes?) — update an existing place (use after get_poi_memory to get IDs)
-- get_poi_memory(country?, city?, category?) — recall visited places; always returns poiId for each place
+- fix_poi_countries() — automatically detect and fill in the country for ALL places that are missing one. Run this when user asks to fix missing countries.
+- get_poi_memory(country?, city?, category?, missingCountry?) — recall visited places; always returns poiId for each place
 
 ### 🏡 Household & Family
 - get_household_context — get all household members and their user IDs
