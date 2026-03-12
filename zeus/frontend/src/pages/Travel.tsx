@@ -1078,144 +1078,178 @@ function MemoryTab({ onToast }: { onToast: (msg: string) => void }) {
     }
   };
 
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+
   // Group by country → city
-  const grouped: Record<string, Record<string, any[]>> = {};
+  const byCountry: Record<string, any[]> = {};
   pois.forEach(p => {
     const c = p.country || "Unknown";
-    const city = p.city || "Unknown";
-    if (!grouped[c]) grouped[c] = {};
-    if (!grouped[c][city]) grouped[c][city] = [];
-    grouped[c][city].push(p);
+    if (!byCountry[c]) byCountry[c] = [];
+    byCountry[c].push(p);
   });
 
+  const countryFlag = (name: string) => {
+    const map: Record<string, string> = {
+      "Afghanistan":"🇦🇫","Albania":"🇦🇱","Algeria":"🇩🇿","Argentina":"🇦🇷","Australia":"🇦🇺",
+      "Austria":"🇦🇹","Belgium":"🇧🇪","Brazil":"🇧🇷","Bulgaria":"🇧🇬","Cambodia":"🇰🇭",
+      "Canada":"🇨🇦","Chile":"🇨🇱","China":"🇨🇳","Colombia":"🇨🇴","Croatia":"🇭🇷",
+      "Cuba":"🇨🇺","Czech Republic":"🇨🇿","Denmark":"🇩🇰","Ecuador":"🇪🇨","Egypt":"🇪🇬",
+      "Ethiopia":"🇪🇹","Finland":"🇫🇮","France":"🇫🇷","Germany":"🇩🇪","Ghana":"🇬🇭",
+      "Greece":"🇬🇷","Hungary":"🇭🇺","India":"🇮🇳","Indonesia":"🇮🇩","Iran":"🇮🇷",
+      "Ireland":"🇮🇪","Israel":"🇮🇱","Italy":"🇮🇹","Japan":"🇯🇵","Jordan":"🇯🇴",
+      "Kenya":"🇰🇪","Laos":"🇱🇦","Lebanon":"🇱🇧","Malaysia":"🇲🇾","Mexico":"🇲🇽",
+      "Morocco":"🇲🇦","Myanmar":"🇲🇲","Nepal":"🇳🇵","Netherlands":"🇳🇱","New Zealand":"🇳🇿",
+      "Nigeria":"🇳🇬","Norway":"🇳🇴","Pakistan":"🇵🇰","Peru":"🇵🇪","Philippines":"🇵🇭",
+      "Poland":"🇵🇱","Portugal":"🇵🇹","Romania":"🇷🇴","Russia":"🇷🇺","Saudi Arabia":"🇸🇦",
+      "Senegal":"🇸🇳","Singapore":"🇸🇬","South Africa":"🇿🇦","South Korea":"🇰🇷","Spain":"🇪🇸",
+      "Sri Lanka":"🇱🇰","Sweden":"🇸🇪","Switzerland":"🇨🇭","Tanzania":"🇹🇿","Thailand":"🇹🇭",
+      "Tunisia":"🇹🇳","Turkey":"🇹🇷","Uganda":"🇺🇬","Ukraine":"🇺🇦","United Kingdom":"🇬🇧",
+      "United States":"🇺🇸","USA":"🇺🇸","Uruguay":"🇺🇾","Vietnam":"🇻🇳","Zambia":"🇿🇲",
+      "Zimbabwe":"🇿🇼","UAE":"🇦🇪","United Arab Emirates":"🇦🇪","Qatar":"🇶🇦","Cuba":"🇨🇺",
+    };
+    return map[name] || "🌍";
+  };
+
+  const resetForm = () => { setShowAdd(false); setEditingPoi(null); setForm({ name: "", address: "", city: "", country: selectedCountry || "", category: "other", notes: "", visitedAt: "", lat: "", lng: "" }); };
+
+  const poiForm = (
+    <div style={{ marginBottom: 24, padding: 20, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12 }}>
+      <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>
+        {editingPoi ? "Edit Place" : "Add New Place"}
+      </div>
+      <form onSubmit={handleAddPoi} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div>
+            <Label>Name *</Label>
+            <Input value={form.name} onChange={e => setF("name", e.target.value)} required placeholder="Place name" />
+          </div>
+          <div>
+            <Label>Category</Label>
+            <select value={form.category} onChange={e => setF("category", e.target.value)}
+              style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-primary)", borderRadius: 6, padding: "8px 10px", fontSize: 14, width: "100%" }}>
+              {Object.keys(POI_ICON).map(k => <option key={k} value={k}>{POI_ICON[k]} {k}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <Label>Address</Label>
+          <Input value={form.address} onChange={e => setF("address", e.target.value)} placeholder="Street address" />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div><Label>City</Label><Input value={form.city} onChange={e => setF("city", e.target.value)} placeholder="City" /></div>
+          <div><Label>Country</Label><Input value={form.country} onChange={e => setF("country", e.target.value)} placeholder="Country" /></div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <div><Label>Visited At</Label><Input type="date" value={form.visitedAt} onChange={e => setF("visitedAt", e.target.value)} /></div>
+          <div><Label>Lat</Label><Input value={form.lat} onChange={e => setF("lat", e.target.value)} placeholder="48.8566" type="number" step="any" /></div>
+          <div><Label>Lng</Label><Input value={form.lng} onChange={e => setF("lng", e.target.value)} placeholder="2.3522" type="number" step="any" /></div>
+        </div>
+        <div>
+          <Label>Notes</Label>
+          <textarea value={form.notes} onChange={e => setF("notes", e.target.value)} rows={2} placeholder="Any notes…"
+            style={{ width: "100%", background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-primary)", borderRadius: 6, padding: "8px 10px", fontSize: 14, resize: "vertical" }} />
+        </div>
+        {formError && <p style={{ color: "#f87171", fontSize: 13 }}>{formError}</p>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <Btn type="submit" variant="primary" disabled={formLoading}>{formLoading ? "Saving…" : (editingPoi ? "Update" : "Add Place")}</Btn>
+          <Btn type="button" variant="default" onClick={resetForm}>Cancel</Btn>
+        </div>
+      </form>
+    </div>
+  );
+
+  // ── Country drill-down view ──────────────────────────────────────────────────
+  if (selectedCountry) {
+    const countryPois = (byCountry[selectedCountry] || []).filter(p =>
+      !filterCategory || p.category === filterCategory
+    );
+    const cities: Record<string, any[]> = {};
+    countryPois.forEach(p => {
+      const city = p.city || "Other";
+      if (!cities[city]) cities[city] = [];
+      cities[city].push(p);
+    });
+
+    return (
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <button onClick={() => { setSelectedCountry(null); setShowAdd(false); }}
+            style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-secondary)", borderRadius: 8, padding: "6px 14px", cursor: "pointer", fontSize: 14 }}>
+            ← Back
+          </button>
+          <span style={{ fontSize: 28 }}>{countryFlag(selectedCountry)}</span>
+          <span style={{ fontWeight: 700, fontSize: 20, color: "var(--text-primary)" }}>{selectedCountry}</span>
+          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{countryPois.length} place{countryPois.length !== 1 ? "s" : ""}</span>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
+              style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-primary)", borderRadius: 6, padding: "6px 10px", fontSize: 13 }}>
+              <option value="">All categories</option>
+              {Object.keys(POI_ICON).map(k => <option key={k} value={k}>{POI_ICON[k]} {k}</option>)}
+            </select>
+            <Btn variant="primary" onClick={() => { setEditingPoi(null); setForm({ name: "", address: "", city: "", country: selectedCountry, category: "other", notes: "", visitedAt: "", lat: "", lng: "" }); setShowAdd(true); }}>
+              + Add place
+            </Btn>
+          </div>
+        </div>
+
+        {showAdd && poiForm}
+
+        {countryPois.length === 0 ? (
+          <EmptyState>No places match this filter.</EmptyState>
+        ) : (
+          Object.entries(cities).map(([city, cityPois]) => (
+            <div key={city} style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>{city}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+                {cityPois.map((poi: any) => (
+                  <div key={poi.id} style={{ position: "relative", padding: 14, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10 }}>
+                    <div style={{ fontSize: 24, marginBottom: 8 }}>{POI_ICON[poi.category] || "📍"}</div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)", marginBottom: 4 }}>{poi.name}</div>
+                    {poi.address && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>{poi.address}</div>}
+                    {poi.visitedAt && <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Visited: {fmtDate(poi.visitedAt)}</div>}
+                    {poi.notes && <div style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>{poi.notes.slice(0, 80)}{poi.notes.length > 80 ? "…" : ""}</div>}
+                    <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                      <button onClick={() => handleEdit(poi)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 5, border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text-secondary)", cursor: "pointer" }}>Edit</button>
+                      <button onClick={() => handleDelete(poi.id)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 5, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer" }}>Delete</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    );
+  }
+
+  // ── Country tiles grid ───────────────────────────────────────────────────────
   return (
     <div>
-      {/* Controls */}
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
-        <div style={{ flex: 1, minWidth: 140 }}>
-          <Label>Filter by country</Label>
-          <Input value={filterCountry} onChange={e => setFilterCountry(e.target.value)} placeholder="e.g. France" />
-        </div>
-        <div style={{ minWidth: 160 }}>
-          <Label>Category</Label>
-          <select
-            value={filterCategory}
-            onChange={e => setFilterCategory(e.target.value)}
-            style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-primary)", borderRadius: 6, padding: "8px 10px", fontSize: 14, width: "100%" }}
-          >
-            <option value="">All categories</option>
-            {Object.keys(POI_ICON).map(k => <option key={k} value={k}>{POI_ICON[k]} {k}</option>)}
-          </select>
-        </div>
         <Btn variant="primary" onClick={() => { setEditingPoi(null); setForm({ name: "", address: "", city: "", country: "", category: "other", notes: "", visitedAt: "", lat: "", lng: "" }); setShowAdd(true); }}>
           + Add place
         </Btn>
       </div>
 
-      {/* Add/Edit form slide-in */}
-      {showAdd && (
-        <div style={{ marginBottom: 24, padding: 20, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12 }}>
-          <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: 14 }}>
-            {editingPoi ? "Edit Place" : "Add New Place"}
-          </div>
-          <form onSubmit={handleAddPoi} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div>
-                <Label>Name *</Label>
-                <Input value={form.name} onChange={e => setF("name", e.target.value)} required placeholder="Place name" />
-              </div>
-              <div>
-                <Label>Category</Label>
-                <select
-                  value={form.category}
-                  onChange={e => setF("category", e.target.value)}
-                  style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-primary)", borderRadius: 6, padding: "8px 10px", fontSize: 14, width: "100%" }}
-                >
-                  {Object.keys(POI_ICON).map(k => <option key={k} value={k}>{POI_ICON[k]} {k}</option>)}
-                </select>
-              </div>
-            </div>
-            <div>
-              <Label>Address</Label>
-              <Input value={form.address} onChange={e => setF("address", e.target.value)} placeholder="Street address" />
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div>
-                <Label>City</Label>
-                <Input value={form.city} onChange={e => setF("city", e.target.value)} placeholder="City" />
-              </div>
-              <div>
-                <Label>Country</Label>
-                <Input value={form.country} onChange={e => setF("country", e.target.value)} placeholder="Country" />
-              </div>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-              <div>
-                <Label>Visited At</Label>
-                <Input type="date" value={form.visitedAt} onChange={e => setF("visitedAt", e.target.value)} />
-              </div>
-              <div>
-                <Label>Lat (optional)</Label>
-                <Input value={form.lat} onChange={e => setF("lat", e.target.value)} placeholder="48.8566" type="number" step="any" />
-              </div>
-              <div>
-                <Label>Lng (optional)</Label>
-                <Input value={form.lng} onChange={e => setF("lng", e.target.value)} placeholder="2.3522" type="number" step="any" />
-              </div>
-            </div>
-            <div>
-              <Label>Notes</Label>
-              <textarea
-                value={form.notes}
-                onChange={e => setF("notes", e.target.value)}
-                rows={2}
-                placeholder="Any notes…"
-                style={{ width: "100%", background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-primary)", borderRadius: 6, padding: "8px 10px", fontSize: 14, resize: "vertical" }}
-              />
-            </div>
-            {formError && <p style={{ color: "#f87171", fontSize: 13 }}>{formError}</p>}
-            <div style={{ display: "flex", gap: 8 }}>
-              <Btn type="submit" variant="primary" disabled={formLoading}>{formLoading ? "Saving…" : (editingPoi ? "Update Place" : "Add Place")}</Btn>
-              <Btn type="button" variant="default" onClick={() => { setShowAdd(false); setEditingPoi(null); }}>Cancel</Btn>
-            </div>
-          </form>
-        </div>
-      )}
+      {showAdd && poiForm}
 
       {loading ? (
         <div style={{ color: "var(--text-muted)", padding: 20 }}>Loading places…</div>
       ) : pois.length === 0 ? (
         <EmptyState>No places saved yet. Add your first memory.</EmptyState>
       ) : (
-        Object.entries(grouped).map(([country, cities]) => (
-          <div key={country} style={{ marginBottom: 28 }}>
-            <div style={{ fontWeight: 700, fontSize: 16, color: "var(--text-primary)", marginBottom: 12 }}>{country}</div>
-            {Object.entries(cities).map(([city, cityPois]) => (
-              <div key={city} style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>{city}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
-                  {cityPois.map((poi: any) => (
-                    <div
-                      key={poi.id}
-                      style={{ position: "relative", padding: 14, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10 }}
-                      className="poi-card"
-                    >
-                      <div style={{ fontSize: 24, marginBottom: 8 }}>{POI_ICON[poi.category] || "📍"}</div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)", marginBottom: 4 }}>{poi.name}</div>
-                      {poi.address && <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 4 }}>{poi.address}</div>}
-                      {poi.visitedAt && <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Visited: {fmtDate(poi.visitedAt)}</div>}
-                      {poi.notes && <div style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>{poi.notes.slice(0, 80)}{poi.notes.length > 80 ? "…" : ""}</div>}
-                      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                        <button onClick={() => handleEdit(poi)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 5, border: "1px solid var(--border)", background: "var(--bg-input)", color: "var(--text-secondary)", cursor: "pointer" }}>Edit</button>
-                        <button onClick={() => handleDelete(poi.id)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 5, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#f87171", cursor: "pointer" }}>Delete</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        ))
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>
+          {Object.entries(byCountry).sort((a, b) => a[0].localeCompare(b[0])).map(([country, places]) => (
+            <button key={country} onClick={() => setSelectedCountry(country)}
+              style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 14, padding: "20px 16px", cursor: "pointer", textAlign: "center", transition: "border-color 0.15s" }}
+              onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--accent)")}
+              onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border)")}>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>{countryFlag(country)}</div>
+              <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)", marginBottom: 4 }}>{country}</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{places.length} place{places.length !== 1 ? "s" : ""}</div>
+            </button>
+          ))}
+        </div>
       )}
 
       {/* File upload */}
