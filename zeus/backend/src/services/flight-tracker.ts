@@ -9,17 +9,17 @@ async function getFlightApiConfig(): Promise<{ apiKey: string; baseUrl: string }
   ]);
   return {
     apiKey: keySetting?.value || "",
-    baseUrl: urlSetting?.value || "https://aeroapi.flightaware.com/aeroapi",
+    baseUrl: urlSetting?.value || "https://airlabs.co/api/v9",
   };
 }
 
-function mapAeroApiStatus(raw: string): string {
+function mapAirLabsStatus(raw: string): string {
   const s = raw.toLowerCase();
-  if (s.includes("scheduled")) return "scheduled";
-  if (s.includes("en route") || s.includes("active") || s.includes("on time")) return "on-time";
-  if (s.includes("landed") || s.includes("arrived")) return "landed";
-  if (s.includes("cancel")) return "cancelled";
-  if (s.includes("delay")) return "delayed";
+  if (s === "scheduled") return "scheduled";
+  if (s === "active" || s === "en-route") return "on-time";
+  if (s === "landed") return "landed";
+  if (s === "cancelled") return "cancelled";
+  if (s === "diverted" || s === "redirected") return "diverted";
   return "scheduled";
 }
 
@@ -52,13 +52,11 @@ export async function checkFlightStatus(
   }
 
   try {
-    const url = `${baseUrl}/flights/${encodeURIComponent(event.flightNumber)}/last`;
-    const res = await fetch(url, {
-      headers: { "x-apikey": apiKey },
-    });
+    const url = `${baseUrl}/flight?flight_iata=${encodeURIComponent(event.flightNumber)}&api_key=${apiKey}`;
+    const res = await fetch(url);
 
     if (!res.ok) {
-      await log("warn", "flight-tracker", `AeroAPI returned ${res.status} for flight ${event.flightNumber}`);
+      await log("warn", "flight-tracker", `AirLabs returned ${res.status} for flight ${event.flightNumber}`);
       return {
         status: event.flightStatus || "scheduled",
         delayMinutes: event.delayMinutes || 0,
@@ -67,19 +65,18 @@ export async function checkFlightStatus(
     }
 
     const data: any = await res.json();
-    const flight = data.flights?.[0] || data;
+    const flight = data.response;
 
-    const rawStatus: string = flight.status || flight.flight_status || "";
-    const newStatus = mapAeroApiStatus(rawStatus);
-    const newDelayMinutes: number =
-      flight.departure_delay != null
-        ? Math.round(flight.departure_delay / 60)
-        : flight.delay_minutes || 0;
+    if (!flight) {
+      return { status: event.flightStatus || "scheduled", delayMinutes: event.delayMinutes || 0, changed: false };
+    }
 
-    const newGate: string | undefined =
-      flight.gate_destination || flight.gate_origin || flight.last_position?.gate || undefined;
-    const newTerminal: string | undefined =
-      flight.terminal_destination || flight.terminal_origin || undefined;
+    const rawStatus: string = flight.status || "";
+    const newStatus = mapAirLabsStatus(rawStatus);
+    const newDelayMinutes: number = flight.delayed || 0;
+
+    const newGate: string | undefined = flight.arr_gate || flight.dep_gate || undefined;
+    const newTerminal: string | undefined = flight.arr_terminal || flight.dep_terminal || undefined;
 
     const prevStatus = event.flightStatus || "scheduled";
     const changed = prevStatus !== newStatus || (event.delayMinutes || 0) !== newDelayMinutes;
@@ -175,60 +172,14 @@ export async function checkAllActiveFlights(): Promise<void> {
   );
 }
 
+// AirLabs uses polling (no push subscriptions) — just mark the flight as actively tracked
 export async function subscribeToFlight(
   eventId: string,
-  userId: string
+  _userId: string
 ): Promise<{ subscriptionId: string }> {
-  const { apiKey, baseUrl } = await getFlightApiConfig();
-
-  if (!apiKey) {
-    return { subscriptionId: "" };
-  }
-
-  const event = await prisma.tripEvent.findUnique({ where: { id: eventId } });
-  if (!event || !event.flightNumber) {
-    return { subscriptionId: "" };
-  }
-
-  try {
-    const startDateStr = event.startTime
-      ? new Date(event.startTime).toISOString().slice(0, 10)
-      : new Date().toISOString().slice(0, 10);
-
-    const res = await fetch(`${baseUrl}/alerts`, {
-      method: "POST",
-      headers: {
-        "x-apikey": apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        ident: event.flightNumber,
-        origin: event.fromAirport || undefined,
-        destination: event.toAirport || undefined,
-        date: startDateStr,
-        channels: "all",
-        alert_id: eventId,
-      }),
-    });
-
-    if (!res.ok) {
-      await log("warn", "flight-tracker", `AeroAPI subscribe returned ${res.status} for flight ${event.flightNumber}`);
-      return { subscriptionId: "" };
-    }
-
-    const data: any = await res.json();
-    const subscriptionId: string = String(data.alert_id || data.id || "");
-
-    if (subscriptionId) {
-      await prisma.flightTracking.updateMany({
-        where: { eventId },
-        data: { subscriptionId },
-      });
-    }
-
-    return { subscriptionId };
-  } catch (e: any) {
-    await log("error", "flight-tracker", `subscribeToFlight error for event ${eventId}: ${e.message}`);
-    return { subscriptionId: "" };
-  }
+  await prisma.flightTracking.updateMany({
+    where: { eventId },
+    data: { subscriptionId: eventId, lastChecked: new Date() },
+  });
+  return { subscriptionId: eventId };
 }
