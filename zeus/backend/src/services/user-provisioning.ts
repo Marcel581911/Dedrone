@@ -1,18 +1,24 @@
 import { prisma } from "../db.js";
 
-// Patch existing orchestrators to pick up latest delegation + agents section without full re-provision
+// Patch existing orchestrators to pick up latest delegation + household section without full re-provision
 export async function patchOrchestratorPrompts() {
   const orchestrators = await prisma.agent.findMany({
     where: { id: { startsWith: "orch-" } },
   });
 
-  // Ensure delegate_to_agent skill exists
-  const delegateSkill = await prisma.skill.findUnique({ where: { name: "delegate_to_agent" } });
+  const householdSkillNames = [
+    "delegate_to_agent", "get_household_context", "delegate_to_member",
+    "add_household_event", "add_household_task",
+    "add_to_household_shopping_list", "get_household_shopping_list",
+  ];
+  const householdSkills = await prisma.skill.findMany({
+    where: { name: { in: householdSkillNames } },
+  });
 
   for (const orch of orchestrators) {
-    // Patch prompt if it doesn't have the new delegation section
-    const hasDelegate = orch.systemPrompt.includes("delegate_to_agent");
-    if (!hasDelegate) {
+    // Patch prompt if it doesn't have the household section
+    const hasHousehold = orch.systemPrompt.includes("get_household_context");
+    if (!hasHousehold) {
       const cutMarker = "### 🤖 Agents & System";
       const cutIndex = ORCHESTRATOR_PROMPT.indexOf(cutMarker);
       const existingCut = orch.systemPrompt.indexOf(cutMarker);
@@ -22,12 +28,12 @@ export async function patchOrchestratorPrompts() {
       }
     }
 
-    // Assign delegate_to_agent skill if missing
-    if (delegateSkill) {
+    // Assign all household + delegation skills if missing
+    for (const skill of householdSkills) {
       await prisma.agentSkill.upsert({
-        where: { agentId_skillId: { agentId: orch.id, skillId: delegateSkill.id } },
+        where: { agentId_skillId: { agentId: orch.id, skillId: skill.id } },
         update: {},
-        create: { agentId: orch.id, skillId: delegateSkill.id },
+        create: { agentId: orch.id, skillId: skill.id },
       });
     }
   }
@@ -112,6 +118,10 @@ export async function provisionUserAgents(
     "get_upcoming_trip", "create_trip", "add_trip_event",
     "ingest_travel_emails", "check_flight_status",
     "add_poi", "get_poi_memory",
+    // Household & Family
+    "get_household_context", "delegate_to_member",
+    "add_household_event", "add_household_task",
+    "add_to_household_shopping_list", "get_household_shopping_list",
   ];
 
   for (const name of orchSkills) {
@@ -188,6 +198,17 @@ const ORCHESTRATOR_PROMPT = `You are Gulli — a personal life OS assistant. You
 - check_flight_status(eventId?, flightNumber?) — real-time status, gate, delay
 - add_poi(name, city?, country?, category?, notes?, visitedAt?) — save place to travel memory
 - get_poi_memory(country?, city?, category?) — recall visited places
+
+### 🏡 Household & Family
+- get_household_context — get all household members and their user IDs
+- delegate_to_member(memberId, task, context?) — async delegation to another family member's Marcel (they'll see it in their chat)
+- add_household_event(title, startAt, endAt?, location?, allDay?) — add event visible to the whole household
+- add_household_task(title, description?, priority?, dueAt?) — add task visible to the whole household
+- add_to_household_shopping_list(name, quantity?, category?, priority?) — shared shopping list
+- get_household_shopping_list(status?) — see what the whole family needs
+
+Use these when the user says "we", "us", "family", or refers to someone else in the household.
+Shared events, tasks, and shopping items appear in every household member's view.
 
 ### 🤖 Agents & System
 - list_agents — see all available agents and their IDs

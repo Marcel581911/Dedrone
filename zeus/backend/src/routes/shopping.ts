@@ -3,6 +3,7 @@ import { prisma } from "../db.js";
 import { scrapePrice, searchAmazon, extractAsin } from "../services/price-scraper.js";
 import { createNotification } from "./notifications.js";
 import { sendAlert } from "../services/alerts.js";
+import { getUserHouseholdId } from "../services/household.js";
 
 async function ensureAmazonShop(userId: string) {
   const existing = await prisma.shop.findFirst({ where: { userId, name: "Amazon" } });
@@ -67,7 +68,12 @@ export async function shoppingRoutes(app: FastifyInstance) {
 
   app.get("/api/shopping/items", async (req) => {
     const query = req.query as { shopId?: string; status?: string; category?: string };
-    const where: any = { userId: req.userId };
+    const householdId = await getUserHouseholdId(req.userId!);
+
+    const orClauses: any[] = [{ userId: req.userId }];
+    if (householdId) orClauses.push({ householdId });
+
+    const where: any = { OR: orClauses };
     if (query.shopId) where.shopId = query.shopId;
     if (query.status) where.status = query.status;
     if (query.category) where.category = query.category;

@@ -134,6 +134,29 @@ async function main() {
   await upsertSkill("create_shopping_rule", "Create a recurring shopping rule to auto-add an item to the shopping list on a schedule.",
     { itemName: { type: "string" }, trigger: { type: "string", enum: ["daily", "weekly", "monthly"] }, quantity: { type: "string" }, category: { type: "string" }, shopId: { type: "string" } }, ["itemName", "trigger"]);
 
+  // Household / Family skills
+  await upsertSkill("get_household_context", "Get shared family data: household calendar events, tasks, and shopping list with attribution to each member.",
+    { daysAhead: { type: "number", description: "Days ahead to look for events (default: 7)" } });
+
+  await upsertSkill("delegate_to_member", "Delegate a task to another household member's assistant. Creates a ticket in their queue and notifies them.",
+    { memberName: { type: "string", description: "Family member's name (e.g. Sophie)" }, title: { type: "string" }, description: { type: "string" }, priority: { type: "string", enum: ["low", "medium", "high", "critical"] }, dueAt: { type: "string", description: "ISO date-time" } },
+    ["memberName", "title"]);
+
+  await upsertSkill("add_household_event", "Add a calendar event shared with all household members.",
+    { title: { type: "string" }, startAt: { type: "string", description: "ISO date-time" }, endAt: { type: "string" }, location: { type: "string" }, allDay: { type: "boolean" } },
+    ["title", "startAt"]);
+
+  await upsertSkill("add_household_task", "Create a household task visible to all family members, optionally assigned to one member.",
+    { title: { type: "string" }, description: { type: "string" }, priority: { type: "string", enum: ["low", "medium", "high", "critical"] }, dueAt: { type: "string" }, assignTo: { type: "string", description: "Member name to assign to (optional)" } },
+    ["title"]);
+
+  await upsertSkill("add_to_household_shopping_list", "Add an item to the shared household shopping list visible to all family members.",
+    { name: { type: "string" }, quantity: { type: "string" }, category: { type: "string" }, priority: { type: "string", enum: ["low", "normal", "high"] }, notes: { type: "string" } },
+    ["name"]);
+
+  await upsertSkill("get_household_shopping_list", "Get the shared household shopping list with items added by any family member.",
+    { status: { type: "string", enum: ["pending", "bought", "skipped"] } });
+
   // Weather skill
   await upsertSkill("get_weather", "Get current weather and 3-day forecast for the user's city (or a specified location).",
     { city: { type: "string", description: "City name (uses profile city if omitted)" } });

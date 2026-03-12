@@ -38,6 +38,7 @@ import { financeRoutes } from "./routes/finance.js";
 import { shoppingRoutes } from "./routes/shopping.js";
 import { travelRoutes } from "./routes/travel.js";
 import { connectionRoutes } from "./routes/connections.js";
+import { householdRoutes } from "./routes/household.js";
 import multipart from "@fastify/multipart";
 import { log } from "./logger.js";
 import { startWorker } from "./services/worker.js";
@@ -134,6 +135,7 @@ await app.register(financeRoutes);
 await app.register(shoppingRoutes);
 await app.register(travelRoutes);
 await app.register(connectionRoutes);
+await app.register(householdRoutes);
 
 // Serve frontend build (production mode)
 const frontendDist = path.resolve(import.meta.dirname, "../../frontend/dist");

@@ -12,6 +12,7 @@ import { prisma } from "../db.js";
 import { log } from "../logger.js";
 import { searchMemory, storeMemory } from "./memory.js";
 import { sendAlert } from "./alerts.js";
+import { getUserHouseholdId } from "./household.js";
 
 // ── Windows ─────────────────────────────────────────────────────────────────
 
@@ -74,7 +75,16 @@ async function gatherContext(userId: string, type: BriefType) {
   const todayEnd   = new Date(todayStart.getTime() + 86_400_000);
   const tomorrowEnd = new Date(todayEnd.getTime() + 86_400_000);
   const in48h = new Date(now.getTime() + 172_800_000);
-  const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
+
+  const householdId = await getUserHouseholdId(userId);
+  const eventOrClauses: any[] = [{ userId }];
+  const taskOrClauses: any[] = [{ userId }];
+  const shoppingOrClauses: any[] = [{ userId }];
+  if (householdId) {
+    eventOrClauses.push({ householdId });
+    taskOrClauses.push({ householdId });
+    shoppingOrClauses.push({ householdId });
+  }
 
   const [
     overdueTasks,
@@ -91,32 +101,32 @@ async function gatherContext(userId: string, type: BriefType) {
     monthSpending,
   ] = await Promise.all([
     prisma.ticket.findMany({
-      where: { userId, status: { in: ["queued", "in_progress"] }, dueAt: { lt: now } },
+      where: { OR: taskOrClauses, status: { in: ["queued", "in_progress"] }, dueAt: { lt: now } },
       orderBy: { dueAt: "asc" }, take: 5,
       select: { title: true, priority: true, dueAt: true },
     }),
     prisma.ticket.findMany({
-      where: { userId, status: { in: ["queued", "in_progress"] } },
+      where: { OR: taskOrClauses, status: { in: ["queued", "in_progress"] } },
       orderBy: [{ priority: "asc" }, { dueAt: "asc" }], take: 8,
       select: { title: true, priority: true, dueAt: true },
     }),
     prisma.ticket.findMany({
-      where: { userId, status: "done", updatedAt: { gte: todayStart } },
+      where: { OR: taskOrClauses, status: "done", updatedAt: { gte: todayStart } },
       select: { title: true },
     }),
     prisma.calendarEvent.findMany({
-      where: { userId, startAt: { gte: todayStart, lt: todayEnd } },
+      where: { OR: eventOrClauses, startAt: { gte: todayStart, lt: todayEnd } },
       orderBy: { startAt: "asc" }, take: 8,
       select: { title: true, startAt: true, location: true },
     }),
     prisma.calendarEvent.findMany({
-      where: { userId, startAt: { gte: todayEnd, lt: tomorrowEnd } },
+      where: { OR: eventOrClauses, startAt: { gte: todayEnd, lt: tomorrowEnd } },
       orderBy: { startAt: "asc" }, take: 5,
       select: { title: true, startAt: true },
     }),
     // Events remaining today (for midday)
     prisma.calendarEvent.findMany({
-      where: { userId, startAt: { gte: now, lt: todayEnd } },
+      where: { OR: eventOrClauses, startAt: { gte: now, lt: todayEnd } },
       orderBy: { startAt: "asc" }, take: 5,
       select: { title: true, startAt: true },
     }),
@@ -135,7 +145,7 @@ async function gatherContext(userId: string, type: BriefType) {
       orderBy: { startTime: "asc" }, take: 3,
       select: { title: true, flightNumber: true, airline: true, fromAirport: true, toAirport: true, startTime: true, flightStatus: true, delayMinutes: true },
     }),
-    prisma.shoppingItem.count({ where: { userId, status: "pending" } }),
+    prisma.shoppingItem.count({ where: { OR: shoppingOrClauses, status: "pending" } }),
     // Finance — total assets
     prisma.asset.aggregate({ where: { userId }, _sum: { value: true } }).catch(() => null),
     // Monthly spending by category

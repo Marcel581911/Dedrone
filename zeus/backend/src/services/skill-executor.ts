@@ -711,6 +711,212 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
     };
   },
 
+  // ── Household / Family skills ──────────────────────────────────────────────
+  get_household_context: async (_args, userId) => {
+    const { getUserHouseholdId, getHouseholdMembers } = await import("./household.js");
+    const householdId = await getUserHouseholdId(userId);
+    if (!householdId) return { success: false, data: {}, message: "No household set up. The admin needs to complete setup first." };
+
+    const now = new Date();
+    const in7days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const [members, events, tasks, shopping] = await Promise.all([
+      getHouseholdMembers(householdId),
+      prisma.calendarEvent.findMany({
+        where: { householdId, startAt: { gte: now, lte: in7days } },
+        orderBy: { startAt: "asc" },
+        take: 20,
+        include: { user: { select: { name: true } } },
+      }),
+      prisma.ticket.findMany({
+        where: { householdId, status: { notIn: ["done", "failed"] } },
+        orderBy: [{ priority: "asc" }, { dueAt: "asc" }],
+        take: 20,
+        include: { user: { select: { name: true } } },
+      }),
+      prisma.shoppingItem.findMany({
+        where: { householdId, status: "pending" },
+        orderBy: { createdAt: "desc" },
+        take: 30,
+        include: { user: { select: { name: true } } },
+      }),
+    ]);
+
+    const lines: string[] = [];
+    lines.push(`## Family Members\n${members.map((m) => `- ${m.user.name} (${m.role})`).join("\n")}`);
+    if (events.length > 0) {
+      lines.push(`## Shared Calendar (next 7 days)\n${events.map((e) => `- ${new Date(e.startAt).toLocaleDateString()} ${e.title}${e.user ? ` (${e.user.name})` : ""}`).join("\n")}`);
+    }
+    if (tasks.length > 0) {
+      lines.push(`## Household Tasks\n${tasks.map((t) => `- [${t.status}] ${t.title}${t.user ? ` — ${t.user.name}` : ""}`).join("\n")}`);
+    }
+    if (shopping.length > 0) {
+      lines.push(`## Shared Shopping List\n${shopping.map((s) => `- ${s.name}${s.quantity !== "1" ? ` (${s.quantity})` : ""}${s.user ? ` — added by ${s.user.name}` : ""}`).join("\n")}`);
+    }
+
+    return { success: true, data: { memberCount: members.length, eventCount: events.length, taskCount: tasks.length, shoppingCount: shopping.length }, message: lines.join("\n\n") };
+  },
+
+  delegate_to_member: async (args, userId) => {
+    const memberName  = String(args.memberName  || "").trim();
+    const title       = String(args.title       || "").trim();
+    const description = String(args.description || "").trim();
+    const priority    = String(args.priority    || "medium");
+    const dueAt       = args.dueAt ? new Date(String(args.dueAt)) : null;
+
+    if (!memberName || !title) return { success: false, data: {}, message: "memberName and title are required." };
+
+    const { getUserHouseholdId } = await import("./household.js");
+    const householdId = await getUserHouseholdId(userId);
+    if (!householdId) return { success: false, data: {}, message: "No household set up." };
+
+    const member = await prisma.user.findFirst({
+      where: { name: { contains: memberName, mode: "insensitive" }, householdMemberships: { some: { householdId } } },
+    });
+    if (!member) return { success: false, data: {}, message: `No family member named "${memberName}" found.` };
+    if (member.id === userId) return { success: false, data: {}, message: "You can't delegate to yourself. Use create_ticket instead." };
+
+    const orchId = `orch-${member.id}`;
+    const orch = await prisma.agent.findUnique({ where: { id: orchId } });
+    if (!orch) return { success: false, data: {}, message: `${member.name} doesn't have an assistant set up yet.` };
+
+    const caller = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+    const ticket = await prisma.ticket.create({
+      data: {
+        title,
+        description: description || `Assigned by ${caller?.name || "a family member"}`,
+        priority,
+        status: "queued",
+        category: "Personal",
+        agentId: orchId,
+        userId: member.id,
+        householdId,
+        delegatedFromUserId: userId,
+        ...(dueAt ? { dueAt } : {}),
+      },
+    });
+
+    const { createNotification } = await import("../routes/notifications.js");
+    await createNotification(member.id, "delegation", `New task from ${caller?.name || "family"}`, title, "/tools/todo");
+
+    await log("info", "skill:delegate_to_member", `Task delegated to ${member.name}: "${title}"`, { ticketId: ticket.id });
+    return { success: true, data: { ticketId: ticket.id, memberName: member.name }, message: `Task delegated to ${member.name}'s assistant: "${title}"` };
+  },
+
+  add_household_event: async (args, userId) => {
+    const title    = String(args.title   || "").trim();
+    const startAt  = args.startAt ? new Date(String(args.startAt)) : null;
+    if (!title || !startAt) return { success: false, data: {}, message: "title and startAt are required." };
+
+    const { getUserHouseholdId, getHouseholdMembers } = await import("./household.js");
+    const householdId = await getUserHouseholdId(userId);
+    if (!householdId) return { success: false, data: {}, message: "No household set up." };
+
+    const event = await prisma.calendarEvent.create({
+      data: {
+        title,
+        startAt,
+        endAt:    args.endAt    ? new Date(String(args.endAt))   : null,
+        allDay:   Boolean(args.allDay),
+        location: String(args.location || ""),
+        userId,
+        householdId,
+      },
+    });
+
+    // Notify other members
+    const members = await getHouseholdMembers(householdId);
+    const { createNotification } = await import("../routes/notifications.js");
+    const creator = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+    for (const m of members) {
+      if (m.userId !== userId) {
+        await createNotification(m.userId, "family_event", `New family event: ${title}`, `Added by ${creator?.name}`, "/tools/calendar");
+      }
+    }
+
+    return { success: true, data: { eventId: event.id }, message: `Family event "${title}" created for ${startAt.toLocaleDateString()}.` };
+  },
+
+  add_household_task: async (args, userId) => {
+    const title       = String(args.title       || "").trim();
+    const description = String(args.description || "").trim();
+    const priority    = String(args.priority    || "medium");
+    const assignTo    = String(args.assignTo    || "").trim();
+    const dueAt       = args.dueAt ? new Date(String(args.dueAt)) : null;
+
+    if (!title) return { success: false, data: {}, message: "title is required." };
+
+    const { getUserHouseholdId, getHouseholdMembers } = await import("./household.js");
+    const householdId = await getUserHouseholdId(userId);
+    if (!householdId) return { success: false, data: {}, message: "No household set up." };
+
+    let assignedAgentId: string | null = null;
+    let assignedUserId: string | null = null;
+    if (assignTo) {
+      const member = await prisma.user.findFirst({
+        where: { name: { contains: assignTo, mode: "insensitive" }, householdMemberships: { some: { householdId } } },
+      });
+      if (member) { assignedUserId = member.id; assignedAgentId = `orch-${member.id}`; }
+    }
+
+    const ticket = await prisma.ticket.create({
+      data: {
+        title, description, priority, status: "queued", category: "Personal",
+        householdId, userId: assignedUserId || userId,
+        agentId: assignedAgentId,
+        ...(dueAt ? { dueAt } : {}),
+      },
+    });
+
+    // Notify all household members
+    const members = await getHouseholdMembers(householdId);
+    const { createNotification } = await import("../routes/notifications.js");
+    for (const m of members) {
+      if (m.userId !== userId) {
+        await createNotification(m.userId, "household_task", `New household task: ${title}`, description.slice(0, 100), "/tools/todo");
+      }
+    }
+
+    return { success: true, data: { ticketId: ticket.id }, message: `Household task "${title}" created${assignTo ? ` and assigned to ${assignTo}` : ""}.` };
+  },
+
+  add_to_household_shopping_list: async (args, userId) => {
+    const name     = String(args.name     || "").trim();
+    const quantity = String(args.quantity || "1");
+    const category = String(args.category || "");
+    const notes    = String(args.notes    || "");
+    const priority = String(args.priority || "normal");
+
+    if (!name) return { success: false, data: {}, message: "name is required." };
+
+    const { getUserHouseholdId } = await import("./household.js");
+    const householdId = await getUserHouseholdId(userId);
+    if (!householdId) return { success: false, data: {}, message: "No household set up." };
+
+    const item = await prisma.shoppingItem.create({
+      data: { name, quantity, category, notes, priority, userId, householdId, addedBy: "agent" },
+    });
+
+    return { success: true, data: { itemId: item.id }, message: `"${name}" added to the household shopping list.` };
+  },
+
+  get_household_shopping_list: async (_args, userId) => {
+    const { getUserHouseholdId } = await import("./household.js");
+    const householdId = await getUserHouseholdId(userId);
+    if (!householdId) return { success: false, data: {}, message: "No household set up." };
+
+    const items = await prisma.shoppingItem.findMany({
+      where: { householdId, status: "pending" },
+      orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
+      include: { user: { select: { name: true } } },
+    });
+
+    if (items.length === 0) return { success: true, data: { items: [] }, message: "Household shopping list is empty." };
+
+    const lines = items.map((i) => `- ${i.name}${i.quantity !== "1" ? ` (${i.quantity})` : ""}${i.category ? ` [${i.category}]` : ""}${i.user ? ` — ${i.user.name}` : ""}`);
+    return { success: true, data: { items: items.map((i) => ({ id: i.id, name: i.name, quantity: i.quantity })) }, message: `Household shopping list (${items.length} items):\n${lines.join("\n")}` };
+  },
+
   // ── Multi-step plan-and-execute ────────────────────────────────────────────
   plan_and_execute: async (args, userId) => {
     const goal    = String(args.goal    || "").trim();

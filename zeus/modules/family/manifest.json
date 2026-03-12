@@ -23,7 +23,13 @@
         "send_alert",
         "add_to_shopping_list",
         "get_shopping_list",
-        "plan_and_execute"
+        "plan_and_execute",
+        "get_household_context",
+        "delegate_to_member",
+        "add_household_event",
+        "add_household_task",
+        "add_to_household_shopping_list",
+        "get_household_shopping_list"
       ]
     }
   ]

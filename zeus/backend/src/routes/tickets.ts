@@ -2,11 +2,17 @@ import { FastifyInstance } from "fastify";
 import { prisma } from "../db.js";
 import { chatWithAgent } from "../services/chat.js";
 import { log } from "../logger.js";
+import { getUserHouseholdId } from "../services/household.js";
 
 export async function ticketRoutes(app: FastifyInstance) {
   app.get("/api/tickets", async (req) => {
     const query = req.query as { status?: string; agentId?: string };
-    const where: any = { userId: req.userId };
+    const householdId = await getUserHouseholdId(req.userId!);
+
+    const orClauses: any[] = [{ userId: req.userId }];
+    if (householdId) orClauses.push({ householdId });
+
+    const where: any = { OR: orClauses };
     if (query.status) where.status = query.status;
     if (query.agentId) where.agentId = query.agentId;
     return prisma.ticket.findMany({ where, include: { agent: true }, orderBy: { createdAt: "desc" } });

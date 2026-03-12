@@ -1,12 +1,23 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../db.js";
+import { getUserHouseholdId } from "../services/household.js";
 
 export async function calendarRoutes(app: FastifyInstance) {
   app.get("/api/calendar", async (req) => {
     const query = req.query as { start?: string; end?: string };
-    const where: any = { userId: req.userId };
-    if (query.start) where.startAt = { gte: new Date(query.start) };
-    if (query.end) where.startAt = { ...where.startAt, lte: new Date(query.end) };
+    const timeFilter: any = {};
+    if (query.start) timeFilter.gte = new Date(query.start);
+    if (query.end) timeFilter.lte = new Date(query.end);
+
+    const householdId = await getUserHouseholdId(req.userId!);
+
+    // Build OR: own events + household-shared events
+    const orClauses: any[] = [{ userId: req.userId }];
+    if (householdId) orClauses.push({ householdId });
+
+    const where: any = { OR: orClauses };
+    if (Object.keys(timeFilter).length > 0) where.startAt = timeFilter;
+
     return prisma.calendarEvent.findMany({ where, orderBy: { startAt: "asc" } });
   });
 

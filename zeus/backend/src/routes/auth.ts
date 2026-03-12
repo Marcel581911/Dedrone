@@ -5,6 +5,7 @@ import {
   updateUserPassword, validateInviteCode, markInviteUsed,
 } from "../services/auth.js";
 import { provisionUserAgents } from "../services/user-provisioning.js";
+import { provisionHousehold, joinHousehold } from "../services/household.js";
 import { log } from "../logger.js";
 import { prisma } from "../db.js";
 
@@ -53,6 +54,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     const user = await createUser({ name, password, role: "admin", city, timezone, assistantName, assistantPersonality });
     await provisionUserAgents(user.id, user.assistantName, user.assistantPersonality, user.name);
+    await provisionHousehold(user.id);
 
     const token = await createSession(user.id);
     reply.setCookie("zeus_session", token, COOKIE_OPTS);
@@ -111,6 +113,7 @@ export async function authRoutes(app: FastifyInstance) {
     const user = await createUser({ name, password, role: invite.role, city, timezone, assistantName, assistantPersonality });
     await markInviteUsed(code, user.id);
     await provisionUserAgents(user.id, user.assistantName, user.assistantPersonality, user.name);
+    await joinHousehold(user.id);
 
     const token = await createSession(user.id);
     reply.setCookie("zeus_session", token, COOKIE_OPTS);
