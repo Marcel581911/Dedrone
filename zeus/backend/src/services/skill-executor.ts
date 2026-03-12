@@ -504,12 +504,12 @@ const BUILTIN_SKILLS: Record<string, SkillHandler> = {
 
   fix_poi_countries: async (_args, userId) => {
     // Fetch all POIs with missing or empty country
-    const pois = await prisma.pOI.findMany({
-      where: { userId, OR: [{ country: "" }, { country: null }] },
-      select: { id: true, name: true, city: true, category: true },
+    const allPois = await prisma.pOI.findMany({
+      where: { userId },
+      select: { id: true, name: true, city: true, country: true, category: true },
       orderBy: { id: "asc" },
-      take: 200,
     });
+    const pois = allPois.filter(p => !p.country || p.country.trim() === "");
 
     if (pois.length === 0) {
       return { success: true, data: { updated: 0 }, message: "All places already have a country — nothing to fix." };
