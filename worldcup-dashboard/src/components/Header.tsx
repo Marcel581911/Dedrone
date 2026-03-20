@@ -18,8 +18,8 @@ export default function Header() {
       </div>
       <div className="flex items-center gap-4">
         <div className="text-right">
-          <div className="text-xs text-slate-500">United States &bull; Canada</div>
-          <div className="text-xs font-medium text-blue-400">12 Host Venues</div>
+          <div className="text-xs text-slate-500">United States &bull; Mexico &bull; Canada</div>
+          <div className="text-xs font-medium text-blue-400">16 Host Venues</div>
         </div>
       </div>
     </header>

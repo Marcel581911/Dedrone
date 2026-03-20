@@ -219,4 +219,56 @@ export const hostCities: HostCity[] = [
     equipment: [],
     supportTeam: [],
   },
+
+  // ───────────────────────── TORONTO ─────────────────────────
+  {
+    id: 'toronto',
+    city: 'Toronto',
+    state: 'ON',
+    country: 'CA',
+    venue: 'BMO Field',
+    lat: 43.6332,
+    lng: -79.4186,
+    equipment: [],
+    supportTeam: [],
+  },
+
+  // ───────────────────────── MEXICO CITY ─────────────────────────
+  {
+    id: 'mexico-city',
+    city: 'Mexico City',
+    state: 'CDMX',
+    country: 'MX',
+    venue: 'Estadio Azteca',
+    lat: 19.3029,
+    lng: -99.1505,
+    equipment: [],
+    supportTeam: [],
+  },
+
+  // ───────────────────────── GUADALAJARA ─────────────────────────
+  {
+    id: 'guadalajara',
+    city: 'Guadalajara',
+    state: 'JAL',
+    country: 'MX',
+    venue: 'Estadio Akron',
+    lat: 20.6821,
+    lng: -103.4625,
+    equipment: [],
+    supportTeam: [],
+  },
+
+  // ───────────────────────── MONTERREY ─────────────────────────
+  {
+    id: 'monterrey',
+    city: 'Monterrey',
+    state: 'NL',
+    country: 'MX',
+    venue: 'Estadio BBVA',
+    lat: 25.6699,
+    lng: -100.2447,
+    equipment: [],
+    supportTeam: [],
+  },
 ];

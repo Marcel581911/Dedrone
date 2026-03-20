@@ -30,7 +30,7 @@ export interface HostCity {
   id: string;
   city: string;
   state: string;
-  country: 'US' | 'CA';
+  country: 'US' | 'CA' | 'MX';
   venue: string;
   lat: number;
   lng: number;

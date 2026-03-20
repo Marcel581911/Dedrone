@@ -11,7 +11,7 @@ interface MapViewProps {
 export default function MapView({ cities, selectedCity, onCitySelect }: MapViewProps) {
   return (
     <MapContainer
-      center={[39.5, -98.0]}
+      center={[35.0, -100.0]}
       zoom={4}
       minZoom={3}
       maxZoom={10}
