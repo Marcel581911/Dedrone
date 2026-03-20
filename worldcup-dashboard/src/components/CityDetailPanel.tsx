@@ -36,8 +36,8 @@ function groupByAgency(equipment: Equipment[]): AgencyGroup[] {
 function countryLabel(city: HostCity) {
   switch (city.country) {
     case 'US': return `${city.state}, USA`;
-    case 'CA': return `${city.state}, Canada`;
-    case 'MX': return `${city.state}, Mexico`;
+    case 'CA': return `🇨🇦 ${city.state}, Canada`;
+    case 'MX': return `🇲🇽 ${city.state}, Mexico`;
   }
 }
 

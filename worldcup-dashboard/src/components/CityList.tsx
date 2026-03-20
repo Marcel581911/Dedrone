@@ -58,12 +58,8 @@ export default function CityList({ cities, selectedCity, onCitySelect }: CityLis
                   <span className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-slate-200'}`}>
                     {city.city}
                   </span>
-                  {city.country === 'CA' && (
-                    <span className="rounded bg-red-900/40 px-1 py-0.5 text-[9px] font-bold text-red-300">CA</span>
-                  )}
-                  {city.country === 'MX' && (
-                    <span className="rounded bg-green-900/40 px-1 py-0.5 text-[9px] font-bold text-green-300">MX</span>
-                  )}
+                  {city.country === 'CA' && <span className="text-sm" title="Canada">🇨🇦</span>}
+                  {city.country === 'MX' && <span className="text-sm" title="Mexico">🇲🇽</span>}
                 </div>
                 <div className="text-xs text-slate-500">{city.venue}</div>
                 <div className="text-[10px] text-slate-600 truncate">{owners.join(' · ')}</div>
@@ -99,12 +95,8 @@ export default function CityList({ cities, selectedCity, onCitySelect }: CityLis
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1">
                       <span className="text-sm text-slate-400">{city.city}</span>
-                      {city.country === 'CA' && (
-                        <span className="rounded bg-red-900/40 px-1 py-0.5 text-[9px] font-bold text-red-300">CA</span>
-                      )}
-                      {city.country === 'MX' && (
-                        <span className="rounded bg-green-900/40 px-1 py-0.5 text-[9px] font-bold text-green-300">MX</span>
-                      )}
+                      {city.country === 'CA' && <span className="text-sm" title="Canada">🇨🇦</span>}
+                      {city.country === 'MX' && <span className="text-sm" title="Mexico">🇲🇽</span>}
                     </div>
                     <div className="text-xs text-slate-600">{city.venue}</div>
                   </div>
