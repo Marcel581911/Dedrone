@@ -39,9 +39,11 @@ Only rows where **Document Display Category = "Hardware"** are shown in the dash
 
 | Category | Reason |
 |----------|--------|
-| **Software** | Software licenses, subscriptions, and hosted software are not physical assets to deploy (e.g., DedroneTracker.AI RF Software, Titan 3 Software License, Defender Software, D-Fend SW) |
+| **Software** | Software licenses, subscriptions, and hosted software are not physical assets to deploy. **DedroneTracker.AI is software** — all Tracker-related items are excluded (RF Software Hosted, Camera Software, Radar Software, C2 Online, Tactical Software, Standard Range Software, etc.). Also excluded: Titan 3 Software License, Defender Software, D-Fend SW, EchoShield Radar Software License, ESR Software License, Starlink Internet Access, Tracker AI Mitigation Software, Data Portal |
 | **Services** | Installation and professional services (e.g., Install Services) |
-| **Warranty** | Extended warranty line items (e.g., Titan 3 Ext Warranty, ESR Ext Warranty, FLIR Ext Warranty) |
+| **Warranty** | Extended warranty line items (e.g., Titan 3 Ext Warranty, ESR Ext Warranty, FLIR Ext Warranty, RI Radar Ext Warranty, D-Fend EnforceAir2 Warranty, Advanced Trailer Warranty) |
+
+> **Note:** DedroneTracker.AI (sometimes referred to as "D=Tracker" or "DT") is a **software platform**, not hardware. It appears frequently in Salesforce opportunities but is always categorized as Software and is fully excluded from this dashboard.
 
 ---
 
