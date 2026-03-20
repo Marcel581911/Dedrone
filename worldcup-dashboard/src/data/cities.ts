@@ -1,6 +1,7 @@
 import type { HostCity } from '../types';
 
 export const hostCities: HostCity[] = [
+  // ───────────────────────── NEW YORK / NEW JERSEY ─────────────────────────
   {
     id: 'nyc',
     city: 'New York / New Jersey',
@@ -10,17 +11,36 @@ export const hostCities: HostCity[] = [
     lat: 40.8135,
     lng: -74.0745,
     equipment: [
-      { id: 'nyc-1', name: 'DedroneTracker', model: 'DT-4', quantity: 6, ownership: 'Federal', ownerName: 'DHS CISA', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'nyc-2', name: 'DroneDefender', model: 'DD-200', quantity: 4, ownership: 'SLTT', ownerName: 'NJ State Police', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'nyc-3', name: 'DedroneSensor', model: 'RF-160', quantity: 12, ownership: 'Private', ownerName: 'MetLife Stadium Security', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'nyc-4', name: 'DedroneCommand', model: 'DC-1', quantity: 2, ownership: 'Federal', ownerName: 'FBI Field Office NYC', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'in-transit' },
+      // ── NYPD ──
+      { id: 'nyc-nypd-1', name: 'RF-560 Sensor', model: 'RF-560', quantity: 5, ownership: 'SLTT', ownerName: 'NYPD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-nypd-2', name: 'ESR Radar', model: 'EchoShield SR', quantity: 4, ownership: 'SLTT', ownerName: 'NYPD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-nypd-3', name: 'PTZ Camera', model: 'Standard PTZ', quantity: 1, ownership: 'SLTT', ownerName: 'NYPD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-nypd-4', name: 'AI Connector', model: 'AI Connector 1.0', quantity: 1, ownership: 'SLTT', ownerName: 'NYPD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-nypd-5', name: 'D-Fend EnforceAir2', model: 'EnforceAir2', quantity: 2, ownership: 'SLTT', ownerName: 'NYPD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-nypd-6', name: 'Dedrone Defender II', model: 'Defender II (GPS)', quantity: 2, ownership: 'SLTT', ownerName: 'NYPD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-nypd-7', name: 'Tactical Titan 3', model: 'Titan 3 Portable', quantity: 3, ownership: 'SLTT', ownerName: 'NYPD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-nypd-8', name: 'Tactical RF-310', model: 'RF-310 Portable', quantity: 3, ownership: 'SLTT', ownerName: 'NYPD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-nypd-9', name: 'Tactical RF-560', model: 'RF-560 Portable', quantity: 2, ownership: 'SLTT', ownerName: 'NYPD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-nypd-10', name: 'Tactical ESR Radar', model: 'ESR Portable', quantity: 1, ownership: 'SLTT', ownerName: 'NYPD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-nypd-11', name: 'Tactical PTZ Camera', model: 'PTZ Portable', quantity: 1, ownership: 'SLTT', ownerName: 'NYPD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-nypd-12', name: 'Tactical Offline Server', model: 'Offline Server', quantity: 1, ownership: 'SLTT', ownerName: 'NYPD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-nypd-13', name: 'Starlink HW Kit', model: 'Starlink Mini', quantity: 3, ownership: 'SLTT', ownerName: 'NYPD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-nypd-14', name: 'Camera Mount', model: 'Camera Mount', quantity: 1, ownership: 'SLTT', ownerName: 'NYPD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      // ── Morris County DPS ──
+      { id: 'nyc-morris-1', name: 'RF-560 Sensor', model: 'RF-560 (TEL)', quantity: 80, ownership: 'SLTT', ownerName: 'Morris County DPS', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-morris-2', name: 'RF-900 Sensor', model: 'RF-900', quantity: 27, ownership: 'SLTT', ownerName: 'Morris County DPS', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-morris-3', name: 'ESR Radar', model: 'EchoShield SR', quantity: 4, ownership: 'SLTT', ownerName: 'Morris County DPS', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-morris-4', name: 'AI Connector', model: 'AI Connector 1.0', quantity: 1, ownership: 'SLTT', ownerName: 'Morris County DPS', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-morris-5', name: 'FLIR Ranger HDC 350', model: 'HDC 350', quantity: 1, ownership: 'SLTT', ownerName: 'Morris County DPS', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-morris-6', name: 'Box Server', model: 'Box Server', quantity: 1, ownership: 'SLTT', ownerName: 'Morris County DPS', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-morris-7', name: '3M Mast', model: 'Mast 3M', quantity: 111, ownership: 'SLTT', ownerName: 'Morris County DPS', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-morris-8', name: 'Starlink HW Kit', model: 'Starlink Mini', quantity: 80, ownership: 'SLTT', ownerName: 'Morris County DPS', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'nyc-morris-9', name: 'Battery Pack', model: 'Battery USA', quantity: 36, ownership: 'SLTT', ownerName: 'Morris County DPS', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
     ],
-    supportTeam: [
-      { id: 'nyc-s1', name: 'James Mitchell', role: 'Lead Field Engineer', phone: '(201) 555-0101', email: 'j.mitchell@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'nyc-s2', name: 'Sarah Chen', role: 'RF Analyst', phone: '(201) 555-0102', email: 's.chen@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'nyc-s3', name: 'Mike Rodriguez', role: 'Technical Support', phone: '(703) 555-0200', email: 'm.rodriguez@dedrone.com', supportType: 'virtual', available: true },
-    ],
+    supportTeam: [],
   },
+
+  // ───────────────────────── LOS ANGELES ─────────────────────────
   {
     id: 'la',
     city: 'Los Angeles',
@@ -29,18 +49,11 @@ export const hostCities: HostCity[] = [
     venue: 'SoFi Stadium',
     lat: 33.9535,
     lng: -118.3392,
-    equipment: [
-      { id: 'la-1', name: 'DedroneTracker', model: 'DT-4', quantity: 8, ownership: 'Federal', ownerName: 'Secret Service - LA', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'la-2', name: 'DedroneSensor', model: 'RF-160', quantity: 10, ownership: 'Private', ownerName: 'SoFi Stadium / NFL', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'la-3', name: 'DroneDefender', model: 'DD-200', quantity: 3, ownership: 'SLTT', ownerName: 'LAPD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
-      { id: 'la-4', name: 'DedroneCommand', model: 'DC-1', quantity: 2, ownership: 'Federal', ownerName: 'DHS CISA', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-    ],
-    supportTeam: [
-      { id: 'la-s1', name: 'Carlos Vega', role: 'Lead Field Engineer', phone: '(310) 555-0201', email: 'c.vega@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'la-s2', name: 'Emily Park', role: 'Systems Integrator', phone: '(310) 555-0202', email: 'e.park@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'la-s3', name: 'David Kim', role: 'SOC Analyst', phone: '(703) 555-0203', email: 'd.kim@dedrone.com', supportType: 'virtual', available: false },
-    ],
+    equipment: [],
+    supportTeam: [],
   },
+
+  // ───────────────────────── DALLAS ─────────────────────────
   {
     id: 'dallas',
     city: 'Dallas',
@@ -50,15 +63,15 @@ export const hostCities: HostCity[] = [
     lat: 32.7473,
     lng: -97.0945,
     equipment: [
-      { id: 'dal-1', name: 'DedroneTracker', model: 'DT-4', quantity: 5, ownership: 'SLTT', ownerName: 'TX Dept of Public Safety', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'dal-2', name: 'DedroneSensor', model: 'RF-160', quantity: 8, ownership: 'Private', ownerName: 'AT&T Stadium Security', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'dal-3', name: 'DroneDefender', model: 'DD-200', quantity: 4, ownership: 'Federal', ownerName: 'CBP Air & Marine', dealStatus: 'open', deliveryReady: 'partial', delivered: 'pending' },
+      { id: 'dal-1', name: 'Dedrone Defender II', model: 'Defender II (GPS)', quantity: 5, ownership: 'SLTT', ownerName: 'Dallas PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'dal-2', name: 'RapidResponse w/ ELR Radar', model: 'DRR + ELR', quantity: 5, ownership: 'SLTT', ownerName: 'Dallas PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'dal-3', name: 'Titan 3', model: 'Titan 3 Kit', quantity: 7, ownership: 'SLTT', ownerName: 'Dallas PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'dal-4', name: 'Starlink HW Kit', model: 'Starlink Mini', quantity: 5, ownership: 'SLTT', ownerName: 'Dallas PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
     ],
-    supportTeam: [
-      { id: 'dal-s1', name: 'Robert Lee', role: 'Field Engineer', phone: '(214) 555-0301', email: 'r.lee@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'dal-s2', name: 'Amanda Torres', role: 'Technical Support', phone: '(703) 555-0302', email: 'a.torres@dedrone.com', supportType: 'virtual', available: true },
-    ],
+    supportTeam: [],
   },
+
+  // ───────────────────────── SAN FRANCISCO BAY AREA ─────────────────────────
   {
     id: 'sf',
     city: 'San Francisco Bay Area',
@@ -67,16 +80,11 @@ export const hostCities: HostCity[] = [
     venue: "Levi's Stadium",
     lat: 37.4033,
     lng: -121.9694,
-    equipment: [
-      { id: 'sf-1', name: 'DedroneTracker', model: 'DT-4', quantity: 6, ownership: 'Federal', ownerName: 'DHS CISA', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'sf-2', name: 'DedroneSensor', model: 'RF-160', quantity: 10, ownership: 'Private', ownerName: "Levi's Stadium / 49ers", dealStatus: 'closed', deliveryReady: 'yes', delivered: 'in-transit' },
-      { id: 'sf-3', name: 'DedroneCommand', model: 'DC-1', quantity: 1, ownership: 'SLTT', ownerName: 'Santa Clara PD', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-    ],
-    supportTeam: [
-      { id: 'sf-s1', name: 'Jason Wu', role: 'Lead Field Engineer', phone: '(408) 555-0401', email: 'j.wu@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'sf-s2', name: 'Lisa Nguyen', role: 'RF Analyst', phone: '(408) 555-0402', email: 'l.nguyen@dedrone.com', supportType: 'on-site', available: true },
-    ],
+    equipment: [],
+    supportTeam: [],
   },
+
+  // ───────────────────────── MIAMI ─────────────────────────
   {
     id: 'miami',
     city: 'Miami',
@@ -86,17 +94,21 @@ export const hostCities: HostCity[] = [
     lat: 25.958,
     lng: -80.2389,
     equipment: [
-      { id: 'mia-1', name: 'DedroneTracker', model: 'DT-4', quantity: 7, ownership: 'Federal', ownerName: 'Secret Service - Miami', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'mia-2', name: 'DedroneSensor', model: 'RF-160', quantity: 14, ownership: 'Private', ownerName: 'Hard Rock Stadium / Miami Dolphins', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'mia-3', name: 'DroneDefender', model: 'DD-200', quantity: 5, ownership: 'SLTT', ownerName: 'Miami-Dade PD', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'mia-4', name: 'DedroneCommand', model: 'DC-1', quantity: 2, ownership: 'Federal', ownerName: 'DHS CISA', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
+      { id: 'mia-1', name: 'Dedrone Defender II', model: 'Defender II (GPS)', quantity: 8, ownership: 'SLTT', ownerName: 'Miami-Dade Sheriff Office', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'mia-2', name: 'RI Radar', model: 'RI Radar', quantity: 8, ownership: 'SLTT', ownerName: 'Miami-Dade Sheriff Office', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'mia-3', name: 'Aluma Trailer w/ EchoGuard', model: 'Aluma Trailer SR', quantity: 4, ownership: 'SLTT', ownerName: 'Miami-Dade Sheriff Office', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'mia-4', name: 'RF-360 Sensor', model: 'RF-360', quantity: 20, ownership: 'SLTT', ownerName: 'Miami-Dade Sheriff Office', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'mia-5', name: 'RF-560 Sensor', model: 'RF-560', quantity: 4, ownership: 'SLTT', ownerName: 'Miami-Dade Sheriff Office', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'mia-6', name: 'PTZ Camera', model: 'Standard PTZ', quantity: 4, ownership: 'SLTT', ownerName: 'Miami-Dade Sheriff Office', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'mia-7', name: 'AI Connector', model: 'AI Connector 1.0', quantity: 4, ownership: 'SLTT', ownerName: 'Miami-Dade Sheriff Office', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'mia-8', name: 'Camera Mount', model: 'Camera Mount', quantity: 4, ownership: 'SLTT', ownerName: 'Miami-Dade Sheriff Office', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'mia-9', name: 'RapidResponse (Short Range)', model: 'DRR Refresh SR', quantity: 4, ownership: 'SLTT', ownerName: 'Miami-Dade Sheriff Office', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'mia-10', name: 'Fixed Site Standard+', model: 'Fixed Site Refresh', quantity: 4, ownership: 'SLTT', ownerName: 'Miami-Dade Sheriff Office', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
     ],
-    supportTeam: [
-      { id: 'mia-s1', name: 'Ricardo Fernandez', role: 'Lead Field Engineer', phone: '(305) 555-0501', email: 'r.fernandez@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'mia-s2', name: 'Keisha Brown', role: 'Systems Integrator', phone: '(305) 555-0502', email: 'k.brown@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'mia-s3', name: 'Tom Wilson', role: 'SOC Analyst', phone: '(703) 555-0503', email: 't.wilson@dedrone.com', supportType: 'virtual', available: true },
-    ],
+    supportTeam: [],
   },
+
+  // ───────────────────────── ATLANTA ─────────────────────────
   {
     id: 'atlanta',
     city: 'Atlanta',
@@ -106,15 +118,14 @@ export const hostCities: HostCity[] = [
     lat: 33.7553,
     lng: -84.4006,
     equipment: [
-      { id: 'atl-1', name: 'DedroneTracker', model: 'DT-4', quantity: 5, ownership: 'Federal', ownerName: 'FBI Field Office Atlanta', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'atl-2', name: 'DedroneSensor', model: 'RF-160', quantity: 8, ownership: 'Private', ownerName: 'Mercedes-Benz Stadium / Falcons', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
-      { id: 'atl-3', name: 'DroneDefender', model: 'DD-200', quantity: 3, ownership: 'SLTT', ownerName: 'GA Bureau of Investigation', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'in-transit' },
+      { id: 'atl-1', name: 'Dedrone Defender II', model: 'Defender II (GPS)', quantity: 7, ownership: 'SLTT', ownerName: 'GA Bureau of Investigation', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'atl-2', name: 'Aluma Trailer w/ EchoGuard', model: 'Aluma Trailer SR', quantity: 3, ownership: 'SLTT', ownerName: 'GA Bureau of Investigation', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'atl-3', name: 'Multi-Node Full Spectrum Kit', model: 'Full Spectrum', quantity: 2, ownership: 'SLTT', ownerName: 'GA Bureau of Investigation', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
     ],
-    supportTeam: [
-      { id: 'atl-s1', name: 'Derek Johnson', role: 'Field Engineer', phone: '(404) 555-0601', email: 'd.johnson@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'atl-s2', name: 'Patricia Moore', role: 'Technical Support', phone: '(703) 555-0602', email: 'p.moore@dedrone.com', supportType: 'virtual', available: true },
-    ],
+    supportTeam: [],
   },
+
+  // ───────────────────────── HOUSTON ─────────────────────────
   {
     id: 'houston',
     city: 'Houston',
@@ -123,17 +134,11 @@ export const hostCities: HostCity[] = [
     venue: 'NRG Stadium',
     lat: 29.6847,
     lng: -95.4107,
-    equipment: [
-      { id: 'hou-1', name: 'DedroneTracker', model: 'DT-4', quantity: 5, ownership: 'SLTT', ownerName: 'TX Dept of Public Safety', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'hou-2', name: 'DedroneSensor', model: 'RF-160', quantity: 9, ownership: 'Private', ownerName: 'NRG Stadium / Texans', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'hou-3', name: 'DroneDefender', model: 'DD-200', quantity: 3, ownership: 'Federal', ownerName: 'CBP Air & Marine', dealStatus: 'closed', deliveryReady: 'partial', delivered: 'in-transit' },
-      { id: 'hou-4', name: 'DedroneCommand', model: 'DC-1', quantity: 1, ownership: 'Federal', ownerName: 'DHS CISA', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-    ],
-    supportTeam: [
-      { id: 'hou-s1', name: 'Maria Gonzalez', role: 'Lead Field Engineer', phone: '(713) 555-0701', email: 'm.gonzalez@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'hou-s2', name: 'Chris Taylor', role: 'RF Analyst', phone: '(713) 555-0702', email: 'c.taylor@dedrone.com', supportType: 'on-site', available: false },
-    ],
+    equipment: [],
+    supportTeam: [],
   },
+
+  // ───────────────────────── PHILADELPHIA ─────────────────────────
   {
     id: 'philly',
     city: 'Philadelphia',
@@ -143,15 +148,13 @@ export const hostCities: HostCity[] = [
     lat: 39.9008,
     lng: -75.1675,
     equipment: [
-      { id: 'phi-1', name: 'DedroneTracker', model: 'DT-4', quantity: 4, ownership: 'Federal', ownerName: 'DHS CISA', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
-      { id: 'phi-2', name: 'DedroneSensor', model: 'RF-160', quantity: 8, ownership: 'Private', ownerName: 'Lincoln Financial Field / Eagles', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'phi-3', name: 'DroneDefender', model: 'DD-200', quantity: 2, ownership: 'SLTT', ownerName: 'PA State Police', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
+      { id: 'phi-1', name: 'D-Fend EnforceAir2', model: 'EnforceAir2', quantity: 5, ownership: 'SLTT', ownerName: 'Philadelphia PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'phi-2', name: 'Titan 3', model: 'Titan 3 Kit', quantity: 2, ownership: 'SLTT', ownerName: 'Philadelphia PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
     ],
-    supportTeam: [
-      { id: 'phi-s1', name: 'Brian O\'Malley', role: 'Field Engineer', phone: '(215) 555-0801', email: 'b.omalley@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'phi-s2', name: 'Stephanie White', role: 'Technical Support', phone: '(703) 555-0802', email: 's.white@dedrone.com', supportType: 'virtual', available: true },
-    ],
+    supportTeam: [],
   },
+
+  // ───────────────────────── SEATTLE ─────────────────────────
   {
     id: 'seattle',
     city: 'Seattle',
@@ -160,16 +163,11 @@ export const hostCities: HostCity[] = [
     venue: 'Lumen Field',
     lat: 47.5952,
     lng: -122.3316,
-    equipment: [
-      { id: 'sea-1', name: 'DedroneTracker', model: 'DT-4', quantity: 5, ownership: 'Federal', ownerName: 'DHS CISA', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'sea-2', name: 'DedroneSensor', model: 'RF-160', quantity: 8, ownership: 'Private', ownerName: 'Lumen Field / Seahawks', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'sea-3', name: 'DedroneCommand', model: 'DC-1', quantity: 1, ownership: 'SLTT', ownerName: 'WA State Patrol', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-    ],
-    supportTeam: [
-      { id: 'sea-s1', name: 'Kevin Zhang', role: 'Lead Field Engineer', phone: '(206) 555-0901', email: 'k.zhang@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'sea-s2', name: 'Rachel Adams', role: 'SOC Analyst', phone: '(703) 555-0902', email: 'r.adams@dedrone.com', supportType: 'virtual', available: true },
-    ],
+    equipment: [],
+    supportTeam: [],
   },
+
+  // ───────────────────────── KANSAS CITY ─────────────────────────
   {
     id: 'kc',
     city: 'Kansas City',
@@ -179,15 +177,24 @@ export const hostCities: HostCity[] = [
     lat: 39.0489,
     lng: -94.4839,
     equipment: [
-      { id: 'kc-1', name: 'DedroneTracker', model: 'DT-4', quantity: 4, ownership: 'Federal', ownerName: 'FBI Field Office KC', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'kc-2', name: 'DedroneSensor', model: 'RF-160', quantity: 6, ownership: 'Private', ownerName: 'Arrowhead Stadium / Chiefs', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'kc-3', name: 'DroneDefender', model: 'DD-200', quantity: 3, ownership: 'SLTT', ownerName: 'MO Highway Patrol', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
+      // ── Kansas City PD ──
+      { id: 'kc-kcpd-1', name: 'Aluma Trailer w/ EchoGuard', model: 'Aluma Trailer SR', quantity: 1, ownership: 'SLTT', ownerName: 'Kansas City PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'kc-kcpd-2', name: 'RF-560 Sensor', model: 'RF-560', quantity: 5, ownership: 'SLTT', ownerName: 'Kansas City PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'kc-kcpd-3', name: 'RF-360 Sensor', model: 'RF-360', quantity: 13, ownership: 'SLTT', ownerName: 'Kansas City PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'kc-kcpd-4', name: 'Tactical Titan 3', model: 'Titan 3 Portable', quantity: 1, ownership: 'SLTT', ownerName: 'Kansas City PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'kc-kcpd-5', name: 'Tactical Offline Server', model: 'Offline Server', quantity: 1, ownership: 'SLTT', ownerName: 'Kansas City PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'kc-kcpd-6', name: 'Tactical Network Kit', model: 'Network Kit', quantity: 1, ownership: 'SLTT', ownerName: 'Kansas City PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'kc-kcpd-7', name: '3M Mast', model: 'Mast 3M', quantity: 1, ownership: 'SLTT', ownerName: 'Kansas City PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'kc-kcpd-8', name: 'Starlink HW Kit', model: 'Starlink Mini', quantity: 1, ownership: 'SLTT', ownerName: 'Kansas City PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      // ── Moniteau County Sheriff ──
+      { id: 'kc-mon-1', name: 'Multi-Node Full Spectrum Kit', model: 'Full Spectrum', quantity: 1, ownership: 'SLTT', ownerName: 'Moniteau County Sheriff', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'kc-mon-2', name: 'Aluma Trailer w/ EchoGuard', model: 'Aluma Trailer SR', quantity: 1, ownership: 'SLTT', ownerName: 'Moniteau County Sheriff', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
+      { id: 'kc-mon-3', name: 'Starlink HW Kit', model: 'Starlink Mini', quantity: 1, ownership: 'SLTT', ownerName: 'Moniteau County Sheriff', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
     ],
-    supportTeam: [
-      { id: 'kc-s1', name: 'Mark Stevens', role: 'Field Engineer', phone: '(816) 555-1001', email: 'm.stevens@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'kc-s2', name: 'Nicole Harper', role: 'Technical Support', phone: '(703) 555-1002', email: 'n.harper@dedrone.com', supportType: 'virtual', available: true },
-    ],
+    supportTeam: [],
   },
+
+  // ───────────────────────── BOSTON ─────────────────────────
   {
     id: 'boston',
     city: 'Boston',
@@ -196,18 +203,11 @@ export const hostCities: HostCity[] = [
     venue: 'Gillette Stadium',
     lat: 42.0909,
     lng: -71.2643,
-    equipment: [
-      { id: 'bos-1', name: 'DedroneTracker', model: 'DT-4', quantity: 5, ownership: 'Federal', ownerName: 'DHS CISA', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'bos-2', name: 'DedroneSensor', model: 'RF-160', quantity: 8, ownership: 'Private', ownerName: 'Gillette Stadium / Patriots', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'in-transit' },
-      { id: 'bos-3', name: 'DroneDefender', model: 'DD-200', quantity: 3, ownership: 'SLTT', ownerName: 'MA State Police', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'bos-4', name: 'DedroneCommand', model: 'DC-1', quantity: 1, ownership: 'Federal', ownerName: 'FBI Field Office Boston', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
-    ],
-    supportTeam: [
-      { id: 'bos-s1', name: 'Patrick Sullivan', role: 'Lead Field Engineer', phone: '(508) 555-1101', email: 'p.sullivan@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'bos-s2', name: 'Ashley Martinez', role: 'RF Analyst', phone: '(508) 555-1102', email: 'a.martinez@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'bos-s3', name: 'Greg Thompson', role: 'SOC Analyst', phone: '(703) 555-1103', email: 'g.thompson@dedrone.com', supportType: 'virtual', available: false },
-    ],
+    equipment: [],
+    supportTeam: [],
   },
+
+  // ───────────────────────── VANCOUVER ─────────────────────────
   {
     id: 'vancouver',
     city: 'Vancouver',
@@ -216,14 +216,7 @@ export const hostCities: HostCity[] = [
     venue: 'BC Place',
     lat: 49.2768,
     lng: -123.112,
-    equipment: [
-      { id: 'van-1', name: 'DedroneTracker', model: 'DT-4', quantity: 6, ownership: 'Federal', ownerName: 'RCMP', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'van-2', name: 'DedroneSensor', model: 'RF-160', quantity: 10, ownership: 'SLTT', ownerName: 'Vancouver PD', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'delivered' },
-      { id: 'van-3', name: 'DedroneCommand', model: 'DC-1', quantity: 2, ownership: 'Federal', ownerName: 'RCMP', dealStatus: 'closed', deliveryReady: 'yes', delivered: 'in-transit' },
-    ],
-    supportTeam: [
-      { id: 'van-s1', name: 'Ian MacDonald', role: 'Lead Field Engineer', phone: '(604) 555-1201', email: 'i.macdonald@dedrone.com', supportType: 'on-site', available: true },
-      { id: 'van-s2', name: 'Sophie Tremblay', role: 'Systems Integrator', phone: '(604) 555-1202', email: 's.tremblay@dedrone.com', supportType: 'on-site', available: true },
-    ],
+    equipment: [],
+    supportTeam: [],
   },
 ];

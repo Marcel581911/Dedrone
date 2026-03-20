@@ -37,3 +37,14 @@ export interface HostCity {
   equipment: Equipment[];
   supportTeam: SupportPerson[];
 }
+
+export interface FederalPoolAsset {
+  id: string;
+  name: string;
+  model: string;
+  quantity: number;
+  ownerName: string;
+  dealStatus: DealStatus;
+  deliveryReady: DeliveryReadyStatus;
+  delivered: DeliveredStatus;
+}

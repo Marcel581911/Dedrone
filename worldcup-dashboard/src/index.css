@@ -58,6 +58,13 @@
   box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
 }
 
+.city-marker.no-data {
+  border-color: #64748b;
+  background: rgba(51, 65, 85, 0.85);
+  box-shadow: 0 0 8px rgba(100, 116, 139, 0.3);
+  font-size: 14px;
+}
+
 .leaflet-popup-content-wrapper {
   background: #1e293b !important;
   color: white !important;

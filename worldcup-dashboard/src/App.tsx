@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import Header from './components/Header';
 import DealSummaryBar from './components/DealSummaryBar';
+import FederalPoolBanner from './components/FederalPoolBanner';
 import CityList from './components/CityList';
 import MapView from './components/MapView';
 import CityDetailPanel from './components/CityDetailPanel';
 import { hostCities } from './data/cities';
+import { federalPool } from './data/federalPool';
 import type { HostCity } from './types';
 
 export default function App() {
@@ -17,7 +19,8 @@ export default function App() {
   return (
     <div className="flex h-screen flex-col bg-slate-950 text-white">
       <Header />
-      <DealSummaryBar cities={hostCities} />
+      <DealSummaryBar cities={hostCities} federalPool={federalPool} />
+      <FederalPoolBanner assets={federalPool} />
       <div className="flex flex-1 overflow-hidden">
         {/* City list sidebar */}
         <div className="w-60 shrink-0">
