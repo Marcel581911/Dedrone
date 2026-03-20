@@ -9,7 +9,7 @@ interface CityListProps {
 
 function getCityStatusInfo(city: HostCity) {
   if (city.equipment.length === 0) {
-    return { icon: <CircleDashed className="h-3.5 w-3.5 text-slate-500" />, text: 'No deals in pipeline', color: 'text-slate-500' };
+    return { icon: <CircleDashed className="h-3.5 w-3.5 text-slate-500" />, text: '-', color: 'text-slate-500' };
   }
   const totalUnits = city.equipment.reduce((sum, e) => sum + e.quantity, 0);
   const deliveredUnits = city.equipment.filter(e => e.delivered === 'delivered').reduce((sum, e) => sum + e.quantity, 0);

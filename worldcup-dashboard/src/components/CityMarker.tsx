@@ -23,7 +23,7 @@ export default function CityMarker({ city, isSelected, onClick }: CityMarkerProp
 
   const icon = L.divIcon({
     className: `city-marker ${status} ${isSelected ? 'selected' : ''}`,
-    html: `<span>${totalEquipment || '—'}</span>`,
+    html: `<span>${totalEquipment || '-'}</span>`,
     iconSize: [36, 36],
     iconAnchor: [18, 18],
   });
@@ -43,7 +43,7 @@ export default function CityMarker({ city, isSelected, onClick }: CityMarkerProp
           {totalEquipment > 0 ? (
             <span className="text-xs text-blue-400">{totalEquipment} HW units</span>
           ) : (
-            <span className="text-xs text-slate-400">No deals in pipeline</span>
+            <span className="text-xs text-slate-400">-</span>
           )}
         </div>
       </Popup>

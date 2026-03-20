@@ -2,7 +2,7 @@ import type { Equipment, HostCity } from '../types';
 import AgencyCard from './AgencyCard';
 import SupportTeamList from './SupportTeamList';
 import EquipmentModal from './EquipmentModal';
-import { MapPin, X, Users, CircleDashed, Building } from 'lucide-react';
+import { MapPin, X, Users, Building } from 'lucide-react';
 import { useState } from 'react';
 
 interface CityDetailPanelProps {
@@ -74,44 +74,34 @@ export default function CityDetailPanel({ city, onClose }: CityDetailPanelProps)
           <h2 className="mt-1 text-xl font-bold text-white">{city.city}</h2>
           <p className="text-sm text-slate-300">{city.venue}</p>
 
-          {hasEquipment ? (
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              <div className="rounded-lg bg-slate-800/60 px-3 py-2 text-center">
-                <div className="text-lg font-bold text-white">{totalEquipment}</div>
-                <div className="text-[10px] uppercase tracking-wider text-slate-400">HW Units</div>
-              </div>
-              <div className="rounded-lg bg-slate-800/60 px-3 py-2 text-center">
-                <div className="text-lg font-bold text-emerald-400">{deliveredCount}</div>
-                <div className="text-[10px] uppercase tracking-wider text-slate-400">Delivered</div>
-              </div>
-              <div className="rounded-lg bg-slate-800/60 px-3 py-2 text-center">
-                <div className="text-lg font-bold text-blue-400">{closedDeals}/{city.equipment.length}</div>
-                <div className="text-[10px] uppercase tracking-wider text-slate-400">Deals Closed</div>
-              </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="rounded-lg bg-slate-800/60 px-3 py-2 text-center">
+              <div className="text-lg font-bold text-white">{hasEquipment ? totalEquipment : '-'}</div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-400">HW Units</div>
             </div>
-          ) : (
-            <div className="mt-4 flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/40 px-4 py-3">
-              <CircleDashed className="h-5 w-5 text-slate-500" />
-              <div>
-                <div className="text-sm font-medium text-slate-300">No deals in pipeline</div>
-                <div className="text-xs text-slate-500">Equipment data will appear here once Salesforce opportunities are created for this venue.</div>
-              </div>
+            <div className="rounded-lg bg-slate-800/60 px-3 py-2 text-center">
+              <div className="text-lg font-bold text-emerald-400">{hasEquipment ? deliveredCount : '-'}</div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-400">Delivered</div>
             </div>
-          )}
+            <div className="rounded-lg bg-slate-800/60 px-3 py-2 text-center">
+              <div className="text-lg font-bold text-blue-400">{hasEquipment ? `${closedDeals}/${city.equipment.length}` : '-'}</div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-400">Deals Closed</div>
+            </div>
+          </div>
         </div>
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
           {/* Agencies section */}
-          {hasEquipment && (
-            <div className="border-b border-slate-800 px-4 py-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Building className="h-4 w-4 text-blue-400" />
-                <span className="text-sm font-semibold text-white">Agencies</span>
-                <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
-                  {agencies.length}
-                </span>
-              </div>
+          <div className="border-b border-slate-800 px-4 py-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Building className="h-4 w-4 text-blue-400" />
+              <span className="text-sm font-semibold text-white">Agencies</span>
+              <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
+                {hasEquipment ? agencies.length : '-'}
+              </span>
+            </div>
+            {hasEquipment ? (
               <div className="space-y-3">
                 {agencies.map(agency => (
                   <AgencyCard
@@ -123,34 +113,41 @@ export default function CityDetailPanel({ city, onClose }: CityDetailPanelProps)
                   />
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="rounded-lg border border-dashed border-slate-700 px-4 py-6 text-center">
+                <div className="text-sm text-slate-500">-</div>
+                <div className="mt-1 text-xs text-slate-600">No agency deals in pipeline yet</div>
+              </div>
+            )}
+          </div>
 
           {/* Support team section */}
-          {hasSupportTeam && (
-            <div className="border-b border-slate-800 px-4 py-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Users className="h-4 w-4 text-purple-400" />
-                <span className="text-sm font-semibold text-white">Support Team</span>
-                <span className="rounded-full bg-blue-900/50 px-2 py-0.5 text-[10px] text-blue-300">
-                  {onSiteCount} on-site
-                </span>
-                <span className="rounded-full bg-purple-900/50 px-2 py-0.5 text-[10px] text-purple-300">
-                  {virtualCount} virtual
-                </span>
-              </div>
+          <div className="border-b border-slate-800 px-4 py-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Users className="h-4 w-4 text-purple-400" />
+              <span className="text-sm font-semibold text-white">Support Team</span>
+              {hasSupportTeam ? (
+                <>
+                  <span className="rounded-full bg-blue-900/50 px-2 py-0.5 text-[10px] text-blue-300">
+                    {onSiteCount} on-site
+                  </span>
+                  <span className="rounded-full bg-purple-900/50 px-2 py-0.5 text-[10px] text-purple-300">
+                    {virtualCount} virtual
+                  </span>
+                </>
+              ) : (
+                <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">-</span>
+              )}
+            </div>
+            {hasSupportTeam ? (
               <SupportTeamList team={city.supportTeam} />
-            </div>
-          )}
-
-          {!hasSupportTeam && hasEquipment && (
-            <div className="px-5 py-4">
-              <div className="flex items-center gap-2 text-slate-500">
-                <Users className="h-4 w-4" />
-                <span className="text-sm">No support team assigned yet</span>
+            ) : (
+              <div className="rounded-lg border border-dashed border-slate-700 px-4 py-6 text-center">
+                <div className="text-sm text-slate-500">-</div>
+                <div className="mt-1 text-xs text-slate-600">No support team assigned yet</div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
