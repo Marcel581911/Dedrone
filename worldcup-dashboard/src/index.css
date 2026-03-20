@@ -16,7 +16,7 @@
 }
 
 .leaflet-tile-pane {
-  filter: brightness(0.6) saturate(0.3) hue-rotate(180deg);
+  filter: brightness(0.75) saturate(0.5);
 }
 
 .city-marker {

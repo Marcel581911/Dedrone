@@ -1,73 +1,46 @@
-# React + TypeScript + Vite
+# FIFA World Cup 2026 - Dedrone Deal Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interactive dashboard for tracking Dedrone equipment deployments across the 12 FIFA World Cup 2026 host venues in North America (11 US cities + Vancouver).
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Interactive Map** — North American map with clickable markers for each host city
+- **Deal Tracking** — Track deal status (Open/Closed), delivery readiness, and delivery status
+- **Equipment Inventory** — View all Dedrone equipment deployed at each venue with ownership details (Federal, SLTT, Private)
+- **Support Team** — See on-site and virtual support personnel assigned to each venue
+- **Summary Dashboard** — Real-time overview of overall delivery progress across all cities
 
-## React Compiler
+## Host Cities
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| City | Venue | Country |
+|------|-------|---------|
+| New York/New Jersey | MetLife Stadium | US |
+| Los Angeles | SoFi Stadium | US |
+| Dallas | AT&T Stadium | US |
+| San Francisco Bay Area | Levi's Stadium | US |
+| Miami | Hard Rock Stadium | US |
+| Atlanta | Mercedes-Benz Stadium | US |
+| Houston | NRG Stadium | US |
+| Philadelphia | Lincoln Financial Field | US |
+| Seattle | Lumen Field | US |
+| Kansas City | Arrowhead Stadium | US |
+| Boston | Gillette Stadium | US |
+| Vancouver | BC Place | Canada |
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cd worldcup-dashboard
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open http://localhost:5173 in your browser.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Tech Stack
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- React 19 + TypeScript
+- Vite
+- Leaflet + react-leaflet (interactive map)
+- Tailwind CSS v4 (styling)
+- Lucide React (icons)
