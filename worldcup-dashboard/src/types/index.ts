@@ -36,6 +36,20 @@ export interface HostCity {
   lng: number;
   equipment: Equipment[];
   supportTeam: SupportPerson[];
+  tracker: DeliveryTracker[];
+}
+
+export interface DeliveryTracker {
+  account: string;
+  dealClosedWon: string;
+  poReceived: string;
+  waiverReceived: string;
+  fbiTraining: string;
+  readyForDelivery: string;
+  shipmentStatus: string;
+  ae: string;
+  owner: string;
+  notes: string;
 }
 
 export interface FederalPoolAsset {

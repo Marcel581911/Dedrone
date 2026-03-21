@@ -4,6 +4,7 @@ import SupportTeamList from './SupportTeamList';
 import EquipmentModal from './EquipmentModal';
 import NearbySensorsModal from './NearbySensorsModal';
 import { nearbySensors } from '../data/nearbySensors';
+import DeliveryTrackerSection from './DeliveryTrackerSection';
 import { MapPin, X, Users, Building, Package, Radio } from 'lucide-react';
 import { useState } from 'react';
 
@@ -60,6 +61,7 @@ export default function CityDetailPanel({ city, onClose }: CityDetailPanelProps)
   const sensorData = nearbySensors[city.id];
 
   const hasEquipment = city.equipment.length > 0;
+  const hasTracker = city.tracker.length > 0;
   const hasSupportTeam = city.supportTeam.length > 0;
 
   const agencies = groupByAgency(city.equipment);
@@ -114,6 +116,9 @@ export default function CityDetailPanel({ city, onClose }: CityDetailPanelProps)
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
+          {/* Delivery tracker section */}
+          {hasTracker && <DeliveryTrackerSection tracker={city.tracker} />}
+
           {/* Agencies section */}
           <div className="border-b border-slate-800 px-4 py-4">
             <div className="mb-3 flex items-center gap-2">

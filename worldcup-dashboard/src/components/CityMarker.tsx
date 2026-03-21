@@ -8,22 +8,26 @@ interface CityMarkerProps {
   onClick: (city: HostCity) => void;
 }
 
-function getCityStatus(city: HostCity): 'all-delivered' | 'has-issues' | 'no-data' | '' {
-  if (city.equipment.length === 0) return 'no-data';
-  const allDelivered = city.equipment.every(e => e.delivered === 'delivered');
-  const hasOpenDeals = city.equipment.some(e => e.dealStatus === 'open');
-  if (allDelivered) return 'all-delivered';
-  if (hasOpenDeals) return 'has-issues';
-  return '';
+function getCityStatus(city: HostCity): 'all-delivered' | 'has-issues' | 'in-progress' | 'no-data' {
+  const hasData = city.equipment.length > 0 || city.tracker.length > 0;
+  if (!hasData) return 'no-data';
+  const hasShipped = city.tracker.some(t => t.shipmentStatus.toLowerCase().includes('shipped') || t.shipmentStatus.toLowerCase().includes('shipping'));
+  if (hasShipped) return 'in-progress';
+  const hasClosed = city.tracker.some(t => t.dealClosedWon.toLowerCase() === 'yes' || t.dealClosedWon.toLowerCase() === 'order submitted');
+  if (hasClosed) return 'has-issues';
+  return 'has-issues';
 }
 
 export default function CityMarker({ city, isSelected, onClick }: CityMarkerProps) {
   const status = getCityStatus(city);
-  const totalEquipment = city.equipment.reduce((sum, e) => sum + e.quantity, 0);
+  const trackerCount = city.tracker.length;
+  const closedCount = city.tracker.filter(t => t.dealClosedWon.toLowerCase() === 'yes' || t.dealClosedWon.toLowerCase() === 'order submitted').length;
+
+  const label = trackerCount > 0 ? `${closedCount}/${trackerCount}` : '-';
 
   const icon = L.divIcon({
     className: `city-marker ${status} ${isSelected ? 'selected' : ''}`,
-    html: `<span>${totalEquipment || '-'}</span>`,
+    html: `<span>${label}</span>`,
     iconSize: [36, 36],
     iconAnchor: [18, 18],
   });
@@ -40,8 +44,8 @@ export default function CityMarker({ city, isSelected, onClick }: CityMarkerProp
           <br />
           <span className="text-slate-300 text-xs">{city.venue}</span>
           <br />
-          {totalEquipment > 0 ? (
-            <span className="text-xs text-blue-400">{totalEquipment} HW units</span>
+          {trackerCount > 0 ? (
+            <span className="text-xs text-blue-400">{closedCount}/{trackerCount} deals closed</span>
           ) : (
             <span className="text-xs text-slate-400">-</span>
           )}

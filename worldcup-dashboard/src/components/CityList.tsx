@@ -1,5 +1,5 @@
 import type { HostCity } from '../types';
-import { MapPin, CheckCircle2, AlertTriangle, Clock, CircleDashed } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 interface CityListProps {
   cities: HostCity[];
@@ -7,18 +7,18 @@ interface CityListProps {
   onCitySelect: (city: HostCity) => void;
 }
 
-function getCityStatusInfo(city: HostCity) {
-  if (city.equipment.length === 0) {
-    return { icon: <CircleDashed className="h-3.5 w-3.5 text-slate-500" />, text: '-', color: 'text-slate-500' };
-  }
-  const totalUnits = city.equipment.reduce((sum, e) => sum + e.quantity, 0);
-  const deliveredUnits = city.equipment.filter(e => e.delivered === 'delivered').reduce((sum, e) => sum + e.quantity, 0);
-  const allDelivered = city.equipment.every(e => e.delivered === 'delivered');
-  const hasOpenDeals = city.equipment.some(e => e.dealStatus === 'open');
-
-  if (allDelivered) return { icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />, text: 'All delivered', color: 'text-emerald-400' };
-  if (hasOpenDeals) return { icon: <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />, text: `${deliveredUnits}/${totalUnits} units delivered`, color: 'text-amber-400' };
-  return { icon: <Clock className="h-3.5 w-3.5 text-blue-400" />, text: `${deliveredUnits}/${totalUnits} units delivered`, color: 'text-blue-400' };
+function getTrackerSummary(city: HostCity) {
+  if (city.tracker.length === 0) return null;
+  const steps = ['dealClosedWon', 'poReceived', 'readyForDelivery', 'shipmentStatus'] as const;
+  const stepLabels = ['Deal', 'PO', 'Ready', 'Shipped'];
+  const results = steps.map(step => {
+    const passed = city.tracker.filter(t => {
+      const v = t[step].toLowerCase();
+      return v === 'yes' || v === 'order submitted' || v === 'partially shipped' || v === 'shipping in april' || v === 'shipment pending';
+    }).length;
+    return { passed, total: city.tracker.length };
+  });
+  return { stepLabels, results, total: city.tracker.length };
 }
 
 function getUniqueOwners(city: HostCity): string[] {
@@ -26,20 +26,10 @@ function getUniqueOwners(city: HostCity): string[] {
   return Array.from(owners);
 }
 
-function getTopEquipment(city: HostCity): { name: string; qty: number }[] {
-  const map = new Map<string, number>();
-  for (const item of city.equipment) {
-    map.set(item.name, (map.get(item.name) || 0) + item.quantity);
-  }
-  return Array.from(map.entries())
-    .map(([name, qty]) => ({ name, qty }))
-    .sort((a, b) => b.qty - a.qty)
-    .slice(0, 4);
-}
 
 export default function CityList({ cities, selectedCity, onCitySelect }: CityListProps) {
-  const citiesWithData = cities.filter(c => c.equipment.length > 0);
-  const citiesWithoutData = cities.filter(c => c.equipment.length === 0);
+  const citiesWithData = cities.filter(c => c.equipment.length > 0 || c.tracker.length > 0);
+  const citiesWithoutData = cities.filter(c => c.equipment.length === 0 && c.tracker.length === 0);
 
   return (
     <div className="flex h-full flex-col border-r border-slate-800 bg-slate-950">
@@ -50,10 +40,10 @@ export default function CityList({ cities, selectedCity, onCitySelect }: CityLis
       </div>
       <div className="flex-1 overflow-y-auto">
         {citiesWithData.map(city => {
-          const status = getCityStatusInfo(city);
           const owners = getUniqueOwners(city);
-          const topHW = getTopEquipment(city);
-          const totalTypes = new Set(city.equipment.map(e => e.name)).size;
+          const trackerAccounts = city.tracker.map(t => t.account);
+          const allAccounts = [...new Set([...owners, ...trackerAccounts])];
+          const trackerSummary = getTrackerSummary(city);
           const isSelected = selectedCity?.id === city.id;
           return (
             <button
@@ -75,24 +65,25 @@ export default function CityList({ cities, selectedCity, onCitySelect }: CityLis
                   {city.country === 'MX' && <span className="text-sm" title="Mexico">🇲🇽</span>}
                 </div>
                 <div className="text-xs text-slate-500">{city.venue}</div>
-                <div className="text-[10px] text-slate-600 truncate">{owners.join(' · ')}</div>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {topHW.map(item => (
-                    <span key={item.name} className="inline-flex items-center gap-0.5 rounded-full bg-slate-800 px-1.5 py-0.5 text-[9px]">
-                      <span className="font-bold text-blue-300">{item.qty}</span>
-                      <span className="text-slate-400">{item.name}</span>
-                    </span>
-                  ))}
-                  {totalTypes > 4 && (
-                    <span className="rounded-full bg-slate-800 px-1.5 py-0.5 text-[9px] text-slate-500">
-                      +{totalTypes - 4}
-                    </span>
-                  )}
-                </div>
-                <div className={`mt-0.5 flex items-center gap-1 text-xs ${status.color}`}>
-                  {status.icon}
-                  <span>{status.text}</span>
-                </div>
+                <div className="text-[10px] text-slate-600 truncate">{allAccounts.join(' · ')}</div>
+
+                {/* Tracker step progress */}
+                {trackerSummary && (
+                  <div className="mt-1.5 flex items-center gap-1">
+                    {trackerSummary.stepLabels.map((label, i) => {
+                      const r = trackerSummary.results[i];
+                      const pct = r.total > 0 ? r.passed / r.total : 0;
+                      const color = pct === 1 ? 'bg-emerald-400' : pct > 0 ? 'bg-amber-400' : 'bg-slate-700';
+                      return (
+                        <div key={label} className="flex flex-col items-center gap-0.5" title={`${label}: ${r.passed}/${r.total}`}>
+                          <div className={`h-1.5 w-8 rounded-full ${color}`} />
+                          <span className="text-[8px] text-slate-500">{label}</span>
+                        </div>
+                      );
+                    })}
+                    <span className="ml-1 text-[9px] text-slate-500">{trackerSummary.total} accts</span>
+                  </div>
+                )}
               </div>
             </button>
           );
