@@ -1,5 +1,5 @@
 import type { HostCity, FederalPoolAsset } from '../types';
-import { BarChart3, CheckCircle2, Truck, AlertCircle, Users, MapPin } from 'lucide-react';
+import { BarChart3, Truck, AlertCircle, Users, MapPin } from 'lucide-react';
 
 interface DealSummaryBarProps {
   cities: HostCity[];
@@ -21,8 +21,6 @@ export default function DealSummaryBar({ cities, federalPool }: DealSummaryBarPr
   const pendingUnits = totalUnits - deliveredUnits - inTransitUnits;
 
   const allDealItems = [...allEquipment, ...federalPool];
-  const closedDeals = allDealItems.filter(e => e.dealStatus === 'closed').length;
-  const openDeals = allDealItems.filter(e => e.dealStatus === 'open').length;
   const readyCount = allDealItems.filter(e => e.deliveryReady === 'yes').length;
 
   const citiesWithEquipment = cities.filter(c => c.equipment.length > 0).length;
@@ -53,7 +51,6 @@ export default function DealSummaryBar({ cities, federalPool }: DealSummaryBarPr
       <Divider />
 
       <StatBlock icon={<MapPin className="h-3.5 w-3.5 text-cyan-400" />} label="Cities Active" value={`${citiesWithEquipment}/${cities.length}`} />
-      <StatBlock icon={<CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />} label="Deals Closed" value={`${closedDeals}`} sub={`${openDeals} open`} />
       <StatBlock icon={<Truck className="h-3.5 w-3.5 text-blue-400" />} label="HW Units" value={`${totalUnits}`} sub={`${deliveredUnits} del / ${inTransitUnits} transit / ${pendingUnits} pending`} />
       <StatBlock icon={<AlertCircle className="h-3.5 w-3.5 text-amber-400" />} label="Delivery Ready" value={`${readyCount}/${allDealItems.length}`} />
       {(onSiteTotal + virtualTotal > 0) && (

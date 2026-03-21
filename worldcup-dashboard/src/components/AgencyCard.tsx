@@ -35,8 +35,6 @@ function ownershipColor(type: Equipment['ownership']) {
 export default function AgencyCard({ agencyName, ownershipType, equipment, onClick }: AgencyCardProps) {
   const totalUnits = equipment.reduce((sum, e) => sum + e.quantity, 0);
   const deliveredUnits = equipment.filter(e => e.delivered === 'delivered').reduce((sum, e) => sum + e.quantity, 0);
-  const closedDeals = equipment.filter(e => e.dealStatus === 'closed').length;
-  const openDeals = equipment.filter(e => e.dealStatus === 'open').length;
 
   const topItems = equipment
     .sort((a, b) => b.quantity - a.quantity)
@@ -73,16 +71,6 @@ export default function AgencyCard({ agencyName, ownershipType, equipment, onCli
           <div className="text-sm font-bold text-emerald-400">{deliveredUnits}</div>
           <div className="text-[9px] uppercase tracking-wider text-slate-500">Delivered</div>
         </div>
-        <div className="rounded bg-slate-800/60 px-2 py-1 text-center">
-          <div className="text-sm font-bold text-blue-400">{closedDeals}</div>
-          <div className="text-[9px] uppercase tracking-wider text-slate-500">Closed</div>
-        </div>
-        {openDeals > 0 && (
-          <div className="rounded bg-slate-800/60 px-2 py-1 text-center">
-            <div className="text-sm font-bold text-amber-400">{openDeals}</div>
-            <div className="text-[9px] uppercase tracking-wider text-slate-500">Open</div>
-          </div>
-        )}
       </div>
 
       {/* Preview of top equipment */}

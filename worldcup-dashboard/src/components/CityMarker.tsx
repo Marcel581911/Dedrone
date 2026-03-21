@@ -21,9 +21,8 @@ function getCityStatus(city: HostCity): 'all-delivered' | 'has-issues' | 'in-pro
 export default function CityMarker({ city, isSelected, onClick }: CityMarkerProps) {
   const status = getCityStatus(city);
   const trackerCount = city.tracker.length;
-  const closedCount = city.tracker.filter(t => t.dealClosedWon.toLowerCase() === 'yes' || t.dealClosedWon.toLowerCase() === 'order submitted').length;
 
-  const label = trackerCount > 0 ? `${closedCount}/${trackerCount}` : '-';
+  const label = trackerCount > 0 ? `${trackerCount}` : '-';
 
   const icon = L.divIcon({
     className: `city-marker ${status} ${isSelected ? 'selected' : ''}`,
@@ -45,7 +44,7 @@ export default function CityMarker({ city, isSelected, onClick }: CityMarkerProp
           <span className="text-slate-300 text-xs">{city.venue}</span>
           <br />
           {trackerCount > 0 ? (
-            <span className="text-xs text-blue-400">{closedCount}/{trackerCount} deals closed</span>
+            <span className="text-xs text-blue-400">{trackerCount} accounts</span>
           ) : (
             <span className="text-xs text-slate-400">-</span>
           )}

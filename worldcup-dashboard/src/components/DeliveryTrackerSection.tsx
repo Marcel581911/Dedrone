@@ -68,7 +68,7 @@ function TrackerCard({ entry }: { entry: DeliveryTracker }) {
 
       {isActive && (
         <div className="mt-2 grid grid-cols-2 gap-x-4">
-          <TrackerRow label="Deal Closed" value={entry.dealClosedWon} />
+          <TrackerRow label="Deal Won" value={entry.dealClosedWon} />
           <TrackerRow label="PO Received" value={entry.poReceived} />
           <TrackerRow label="Waiver" value={entry.waiverReceived} />
           <TrackerRow label="FBI Training" value={entry.fbiTraining} />
@@ -103,27 +103,14 @@ function TrackerCard({ entry }: { entry: DeliveryTracker }) {
 }
 
 export default function DeliveryTrackerSection({ tracker }: DeliveryTrackerSectionProps) {
-  const closedCount = tracker.filter(t => t.dealClosedWon.toLowerCase() === 'yes').length;
-  const pendingCount = tracker.filter(t => t.dealClosedWon.toLowerCase() === 'order submitted').length;
-
   return (
     <div className="border-b border-slate-800 px-4 py-4">
       <div className="mb-3 flex items-center gap-2">
         <Truck className="h-4 w-4 text-cyan-400" />
         <span className="text-sm font-semibold text-white">Delivery Tracker</span>
         <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
-          {tracker.length}
+          {tracker.length} accounts
         </span>
-        {closedCount > 0 && (
-          <span className="rounded-full bg-emerald-900/50 px-2 py-0.5 text-[10px] text-emerald-300">
-            {closedCount} closed
-          </span>
-        )}
-        {pendingCount > 0 && (
-          <span className="rounded-full bg-amber-900/50 px-2 py-0.5 text-[10px] text-amber-300">
-            {pendingCount} submitted
-          </span>
-        )}
       </div>
       <div className="space-y-2">
         {tracker.map(entry => (
