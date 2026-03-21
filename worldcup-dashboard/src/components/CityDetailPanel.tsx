@@ -2,7 +2,7 @@ import type { Equipment, HostCity } from '../types';
 import AgencyCard from './AgencyCard';
 import SupportTeamList from './SupportTeamList';
 import EquipmentModal from './EquipmentModal';
-import { MapPin, X, Users, Building } from 'lucide-react';
+import { MapPin, X, Users, Building, Package } from 'lucide-react';
 import { useState } from 'react';
 
 interface CityDetailPanelProps {
@@ -33,6 +33,16 @@ function groupByAgency(equipment: Equipment[]): AgencyGroup[] {
   return Array.from(map.values());
 }
 
+function consolidateEquipment(equipment: Equipment[]): { name: string; qty: number }[] {
+  const map = new Map<string, number>();
+  for (const item of equipment) {
+    map.set(item.name, (map.get(item.name) || 0) + item.quantity);
+  }
+  return Array.from(map.entries())
+    .map(([name, qty]) => ({ name, qty }))
+    .sort((a, b) => b.qty - a.qty);
+}
+
 function countryLabel(city: HostCity) {
   switch (city.country) {
     case 'US': return `${city.state}, USA`;
@@ -48,11 +58,10 @@ export default function CityDetailPanel({ city, onClose }: CityDetailPanelProps)
   const hasSupportTeam = city.supportTeam.length > 0;
 
   const agencies = groupByAgency(city.equipment);
-  const totalEquipment = city.equipment.reduce((sum, e) => sum + e.quantity, 0);
-  const deliveredCount = city.equipment.filter(e => e.delivered === 'delivered').reduce((sum, e) => sum + e.quantity, 0);
-  const closedDeals = city.equipment.filter(e => e.dealStatus === 'closed').length;
   const onSiteCount = city.supportTeam.filter(p => p.supportType === 'on-site').length;
   const virtualCount = city.supportTeam.filter(p => p.supportType === 'virtual').length;
+
+  const consolidatedHW = consolidateEquipment(city.equipment);
 
   return (
     <>
@@ -74,19 +83,27 @@ export default function CityDetailPanel({ city, onClose }: CityDetailPanelProps)
           <h2 className="mt-1 text-xl font-bold text-white">{city.city}</h2>
           <p className="text-sm text-slate-300">{city.venue}</p>
 
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            <div className="rounded-lg bg-slate-800/60 px-3 py-2 text-center">
-              <div className="text-lg font-bold text-white">{hasEquipment ? totalEquipment : '-'}</div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-400">HW Units</div>
+          {/* Hardware bubbles */}
+          <div className="mt-3">
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <Package className="h-3.5 w-3.5 text-blue-400" />
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Hardware</span>
             </div>
-            <div className="rounded-lg bg-slate-800/60 px-3 py-2 text-center">
-              <div className="text-lg font-bold text-emerald-400">{hasEquipment ? deliveredCount : '-'}</div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-400">Delivered</div>
-            </div>
-            <div className="rounded-lg bg-slate-800/60 px-3 py-2 text-center">
-              <div className="text-lg font-bold text-blue-400">{hasEquipment ? `${closedDeals}/${city.equipment.length}` : '-'}</div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-400">Deals Closed</div>
-            </div>
+            {hasEquipment ? (
+              <div className="flex flex-wrap gap-1.5">
+                {consolidatedHW.map(item => (
+                  <span
+                    key={item.name}
+                    className="inline-flex items-center gap-1 rounded-full border border-slate-600 bg-slate-800/80 px-2.5 py-1 text-[11px]"
+                  >
+                    <span className="font-bold text-blue-300">{item.qty}</span>
+                    <span className="text-slate-300">{item.name}</span>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <span className="text-sm text-slate-500">-</span>
+            )}
           </div>
         </div>
 

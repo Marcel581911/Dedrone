@@ -26,6 +26,17 @@ function getUniqueOwners(city: HostCity): string[] {
   return Array.from(owners);
 }
 
+function getTopEquipment(city: HostCity): { name: string; qty: number }[] {
+  const map = new Map<string, number>();
+  for (const item of city.equipment) {
+    map.set(item.name, (map.get(item.name) || 0) + item.quantity);
+  }
+  return Array.from(map.entries())
+    .map(([name, qty]) => ({ name, qty }))
+    .sort((a, b) => b.qty - a.qty)
+    .slice(0, 4);
+}
+
 export default function CityList({ cities, selectedCity, onCitySelect }: CityListProps) {
   const citiesWithData = cities.filter(c => c.equipment.length > 0);
   const citiesWithoutData = cities.filter(c => c.equipment.length === 0);
@@ -41,6 +52,8 @@ export default function CityList({ cities, selectedCity, onCitySelect }: CityLis
         {citiesWithData.map(city => {
           const status = getCityStatusInfo(city);
           const owners = getUniqueOwners(city);
+          const topHW = getTopEquipment(city);
+          const totalTypes = new Set(city.equipment.map(e => e.name)).size;
           const isSelected = selectedCity?.id === city.id;
           return (
             <button
@@ -63,6 +76,19 @@ export default function CityList({ cities, selectedCity, onCitySelect }: CityLis
                 </div>
                 <div className="text-xs text-slate-500">{city.venue}</div>
                 <div className="text-[10px] text-slate-600 truncate">{owners.join(' · ')}</div>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {topHW.map(item => (
+                    <span key={item.name} className="inline-flex items-center gap-0.5 rounded-full bg-slate-800 px-1.5 py-0.5 text-[9px]">
+                      <span className="font-bold text-blue-300">{item.qty}</span>
+                      <span className="text-slate-400">{item.name}</span>
+                    </span>
+                  ))}
+                  {totalTypes > 4 && (
+                    <span className="rounded-full bg-slate-800 px-1.5 py-0.5 text-[9px] text-slate-500">
+                      +{totalTypes - 4}
+                    </span>
+                  )}
+                </div>
                 <div className={`mt-0.5 flex items-center gap-1 text-xs ${status.color}`}>
                   {status.icon}
                   <span>{status.text}</span>
