@@ -1,10 +1,9 @@
-import type { Equipment, HostCity } from '../types';
-import AgencyCard from './AgencyCard';
+import type { Equipment, HostCity, DeliveryTracker } from '../types';
+import UnifiedAgencyCard from './UnifiedAgencyCard';
 import SupportTeamList from './SupportTeamList';
 import EquipmentModal from './EquipmentModal';
 import NearbySensorsModal from './NearbySensorsModal';
 import { nearbySensors } from '../data/nearbySensors';
-import DeliveryTrackerSection from './DeliveryTrackerSection';
 import { MapPin, X, Users, Building, Radio } from 'lucide-react';
 import { useState } from 'react';
 
@@ -19,9 +18,23 @@ interface AgencyGroup {
   equipment: Equipment[];
 }
 
-function groupByAgency(equipment: Equipment[]): AgencyGroup[] {
-  const map = new Map<string, AgencyGroup>();
-  for (const item of equipment) {
+interface UnifiedAccount {
+  name: string;
+  ownership: Equipment['ownership'];
+  equipment: Equipment[];
+  tracker: DeliveryTracker | null;
+}
+
+function buildUnifiedAccounts(city: HostCity): UnifiedAccount[] {
+  const map = new Map<string, UnifiedAccount>();
+
+  // Known name mappings from tracker → equipment owner
+  const nameMap: Record<string, string> = {
+    'NYPD Counter-Terrorism': 'NYPD',
+    'Morris County DPS': 'Morris County DPS',
+  };
+
+  for (const item of city.equipment) {
     const existing = map.get(item.ownerName);
     if (existing) {
       existing.equipment.push(item);
@@ -30,9 +43,29 @@ function groupByAgency(equipment: Equipment[]): AgencyGroup[] {
         name: item.ownerName,
         ownership: item.ownership,
         equipment: [item],
+        tracker: null,
       });
     }
   }
+
+  for (const t of city.tracker) {
+    const equipName = nameMap[t.account] || t.account;
+    const existing = map.get(equipName);
+    if (existing) {
+      existing.tracker = t;
+      if (existing.name !== t.account) {
+        existing.name = t.account;
+      }
+    } else {
+      map.set(t.account, {
+        name: t.account,
+        ownership: 'SLTT',
+        equipment: [],
+        tracker: t,
+      });
+    }
+  }
+
   return Array.from(map.values());
 }
 
@@ -50,11 +83,9 @@ export default function CityDetailPanel({ city, onClose }: CityDetailPanelProps)
 
   const sensorData = nearbySensors[city.id];
 
-  const hasEquipment = city.equipment.length > 0;
-  const hasTracker = city.tracker.length > 0;
+  const accounts = buildUnifiedAccounts(city);
+  const hasAccounts = accounts.length > 0;
   const hasSupportTeam = city.supportTeam.length > 0;
-
-  const agencies = groupByAgency(city.equipment);
   const onSiteCount = city.supportTeam.filter(p => p.supportType === 'on-site').length;
   const virtualCount = city.supportTeam.filter(p => p.supportType === 'virtual').length;
 
@@ -81,27 +112,29 @@ export default function CityDetailPanel({ city, onClose }: CityDetailPanelProps)
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
-          {/* Delivery tracker section */}
-          {hasTracker && <DeliveryTrackerSection tracker={city.tracker} />}
-
-          {/* Agencies section */}
+          {/* Unified agencies section */}
           <div className="border-b border-slate-800 px-4 py-4">
             <div className="mb-3 flex items-center gap-2">
               <Building className="h-4 w-4 text-blue-400" />
               <span className="text-sm font-semibold text-white">Agencies</span>
               <span className="rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
-                {hasEquipment ? agencies.length : '-'}
+                {hasAccounts ? accounts.length : '-'}
               </span>
             </div>
-            {hasEquipment ? (
+            {hasAccounts ? (
               <div className="space-y-3">
-                {agencies.map(agency => (
-                  <AgencyCard
-                    key={agency.name}
-                    agencyName={agency.name}
-                    ownershipType={agency.ownership}
-                    equipment={agency.equipment}
-                    onClick={() => setModalAgency(agency)}
+                {accounts.map(account => (
+                  <UnifiedAgencyCard
+                    key={account.name}
+                    name={account.name}
+                    ownershipType={account.ownership}
+                    equipment={account.equipment}
+                    tracker={account.tracker}
+                    onViewHardware={account.equipment.length > 0 ? () => setModalAgency({
+                      name: account.name,
+                      ownership: account.ownership,
+                      equipment: account.equipment,
+                    }) : null}
                   />
                 ))}
               </div>
