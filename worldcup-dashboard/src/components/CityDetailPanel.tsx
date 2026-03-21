@@ -2,7 +2,9 @@ import type { Equipment, HostCity } from '../types';
 import AgencyCard from './AgencyCard';
 import SupportTeamList from './SupportTeamList';
 import EquipmentModal from './EquipmentModal';
-import { MapPin, X, Users, Building, Package } from 'lucide-react';
+import NearbySensorsModal from './NearbySensorsModal';
+import { nearbySensors } from '../data/nearbySensors';
+import { MapPin, X, Users, Building, Package, Radio } from 'lucide-react';
 import { useState } from 'react';
 
 interface CityDetailPanelProps {
@@ -53,6 +55,9 @@ function countryLabel(city: HostCity) {
 
 export default function CityDetailPanel({ city, onClose }: CityDetailPanelProps) {
   const [modalAgency, setModalAgency] = useState<AgencyGroup | null>(null);
+  const [showSensors, setShowSensors] = useState(false);
+
+  const sensorData = nearbySensors[city.id];
 
   const hasEquipment = city.equipment.length > 0;
   const hasSupportTeam = city.supportTeam.length > 0;
@@ -138,6 +143,39 @@ export default function CityDetailPanel({ city, onClose }: CityDetailPanelProps)
             )}
           </div>
 
+          {/* Existing sensors section */}
+          {sensorData && sensorData.total > 0 && (
+            <div className="border-b border-slate-800 px-4 py-4">
+              <button
+                onClick={() => setShowSensors(true)}
+                className="w-full rounded-lg border border-purple-800/50 bg-purple-950/20 p-3 text-left transition-all hover:bg-purple-950/40 hover:border-purple-700"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Radio className="h-4 w-4 text-purple-400" />
+                    <span className="text-sm font-semibold text-purple-300">Existing Sensors Nearby</span>
+                  </div>
+                  <span className="rounded-full bg-purple-900/50 border border-purple-700 px-2.5 py-0.5 text-xs font-bold text-purple-300">
+                    {sensorData.total}
+                  </span>
+                </div>
+                <p className="mt-1 text-[10px] text-purple-400/70">
+                  {sensorData.tenants.length} deployments within 50 mi — click for details
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {Object.entries(sensorData.typeCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 6)
+                    .map(([type, count]) => (
+                      <span key={type} className="rounded-full bg-purple-900/30 px-2 py-0.5 text-[10px] text-purple-300">
+                        {count} {type}
+                      </span>
+                    ))}
+                </div>
+              </button>
+            </div>
+          )}
+
           {/* Support team section */}
           <div className="border-b border-slate-800 px-4 py-4">
             <div className="mb-3 flex items-center gap-2">
@@ -174,6 +212,15 @@ export default function CityDetailPanel({ city, onClose }: CityDetailPanelProps)
           agencyName={modalAgency.name}
           equipment={modalAgency.equipment}
           onClose={() => setModalAgency(null)}
+        />
+      )}
+
+      {/* Nearby sensors modal */}
+      {showSensors && sensorData && (
+        <NearbySensorsModal
+          cityName={city.city}
+          data={sensorData}
+          onClose={() => setShowSensors(false)}
         />
       )}
     </>
