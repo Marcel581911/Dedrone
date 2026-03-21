@@ -87,8 +87,8 @@ export default function AgencyCard({ agencyName, ownershipType, equipment, onCli
 
       {/* Preview of top equipment */}
       <div className="mt-2 flex flex-wrap gap-1">
-        {topItems.map((item, i) => (
-          <span key={i} className="rounded bg-slate-800/80 px-1.5 py-0.5 text-[10px] text-slate-300">
+        {topItems.map(item => (
+          <span key={item} className="rounded bg-slate-800/80 px-1.5 py-0.5 text-[10px] text-slate-300">
             {item}
           </span>
         ))}
