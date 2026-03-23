@@ -99,7 +99,7 @@ export const hostCities: HostCity[] = [
       { account: 'Miami-Dade Sheriff Office', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'March 23rd', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Jayde Wilks / Parker Chapman', owner: 'Soyeol Yoo', notes: '3/9: New quote being worked. Attending FBI CUSO on 3/23' },
       { account: 'Miami PD', dealClosedWon: 'Order Submitted', poReceived: 'Yes', waiverReceived: 'No', fbiTraining: 'Early May', readyForDelivery: 'Yes', shipmentStatus: 'Shipment Pending', ae: 'Parker Chapman', owner: 'Cole Austin', notes: '3/20: PO received. Shipping non-mitigation ASAP. Mitigation ships May after FBI CUSO' },
       { account: 'Miami Beach PD', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'Waiting for opening', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Jack Brunk', owner: 'Cole Austin', notes: '3/18: Waiting on state grant agreement language' },
-      { account: 'FDLE', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'March 23rd', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Jack Brunk', owner: 'Cole Austin', notes: '3/18: Funds from Fed, state approval needed. Legislature battling over budget' },
+      { account: 'FL Dept of Law Enforcement (FDLE)', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'March 23rd', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Jack Brunk', owner: 'Cole Austin', notes: '3/18: Funds from Fed, state approval needed. Legislature battling over budget' },
     ],
     supportTeam: [],
   },
