@@ -5,7 +5,7 @@ interface LoginGateProps {
   onAuthenticated: () => void;
 }
 
-const PASS_HASH = '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8';
+const PASS_HASH = '1c19c2dcb7ced19303a6754bb6cf3b9da2ad02fff8950bbab90cd105c7bc90af';
 
 async function sha256(message: string): Promise<string> {
   const msgBuffer = new TextEncoder().encode(message);
