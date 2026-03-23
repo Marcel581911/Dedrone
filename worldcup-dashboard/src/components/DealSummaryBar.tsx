@@ -1,34 +1,49 @@
 import type { HostCity, FederalPoolAsset } from '../types';
-import { BarChart3, Truck, AlertCircle, Users, MapPin } from 'lucide-react';
+import { BarChart3, Truck, Users, MapPin, Building } from 'lucide-react';
 
 interface DealSummaryBarProps {
   cities: HostCity[];
   federalPool: FederalPoolAsset[];
 }
 
+function stepScore(value: string): number {
+  const v = value.toLowerCase();
+  if (v === 'yes' || v === 'delivered' || v === 'shipped') return 1;
+  if (v === 'order submitted' || v === 'partially shipped' || v === 'shipping in april' || v === 'shipment pending' || v === 'pending') return 0.5;
+  if (v === 'n/a') return 1;
+  return 0;
+}
+
 export default function DealSummaryBar({ cities, federalPool }: DealSummaryBarProps) {
-  const allEquipment = cities.flatMap(c => c.equipment);
+  const allTrackers = cities.flatMap(c => c.tracker);
   const allPeople = cities.flatMap(c => c.supportTeam);
-
-  const cityEquipUnits = allEquipment.reduce((sum, e) => sum + e.quantity, 0);
   const fedUnits = federalPool.reduce((sum, a) => sum + a.quantity, 0);
-  const totalUnits = cityEquipUnits + fedUnits;
 
-  const deliveredUnits = allEquipment.filter(e => e.delivered === 'delivered').reduce((sum, e) => sum + e.quantity, 0)
-    + federalPool.filter(a => a.delivered === 'delivered').reduce((sum, a) => sum + a.quantity, 0);
-  const inTransitUnits = allEquipment.filter(e => e.delivered === 'in-transit').reduce((sum, e) => sum + e.quantity, 0)
-    + federalPool.filter(a => a.delivered === 'in-transit').reduce((sum, a) => sum + a.quantity, 0);
-  const pendingUnits = totalUnits - deliveredUnits - inTransitUnits;
+  const citiesWithActivity = cities.filter(c => c.equipment.length > 0 || c.tracker.length > 0).length;
+  const totalAccounts = allTrackers.length;
 
-  const allDealItems = [...allEquipment, ...federalPool];
-  const readyCount = allDealItems.filter(e => e.deliveryReady === 'yes').length;
+  let totalSteps = 0;
+  let completedSteps = 0;
+  for (const t of allTrackers) {
+    const steps = [t.dealClosedWon, t.poReceived, t.waiverReceived, t.fbiTraining, t.readyForDelivery, t.shipmentStatus];
+    const applicable = steps.filter(s => s.toLowerCase() !== 'n/a' && s !== '-' && s !== '');
+    totalSteps += applicable.length;
+    completedSteps += applicable.reduce((sum, s) => sum + stepScore(s), 0);
+  }
 
-  const citiesWithEquipment = cities.filter(c => c.equipment.length > 0).length;
+  const deliveryPct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+
+  const shippedAccounts = allTrackers.filter(t => {
+    const s = t.shipmentStatus.toLowerCase();
+    return s.includes('shipped') || s.includes('shipping');
+  }).length;
+  const readyAccounts = allTrackers.filter(t => {
+    const v = t.readyForDelivery.toLowerCase();
+    return v === 'yes' || v === 'pending';
+  }).length;
 
   const onSiteTotal = allPeople.filter(p => p.supportType === 'on-site').length;
   const virtualTotal = allPeople.filter(p => p.supportType === 'virtual').length;
-
-  const deliveryPct = totalUnits > 0 ? Math.round((deliveredUnits / totalUnits) * 100) : 0;
 
   return (
     <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-800 bg-slate-900/80 px-4 py-2 backdrop-blur">
@@ -50,17 +65,17 @@ export default function DealSummaryBar({ cities, federalPool }: DealSummaryBarPr
 
       <Divider />
 
-      <StatBlock icon={<MapPin className="h-3.5 w-3.5 text-cyan-400" />} label="Cities Active" value={`${citiesWithEquipment}/${cities.length}`} />
-      <StatBlock icon={<Truck className="h-3.5 w-3.5 text-blue-400" />} label="HW Units" value={`${totalUnits}`} sub={`${deliveredUnits} del / ${inTransitUnits} transit / ${pendingUnits} pending`} />
-      <StatBlock icon={<AlertCircle className="h-3.5 w-3.5 text-amber-400" />} label="Delivery Ready" value={`${readyCount}/${allDealItems.length}`} />
+      <StatBlock icon={<MapPin className="h-3.5 w-3.5 text-cyan-400" />} label="Cities Active" value={`${citiesWithActivity}/${cities.length}`} />
+      <StatBlock icon={<Building className="h-3.5 w-3.5 text-amber-400" />} label="Accounts" value={`${totalAccounts}`} sub={`${shippedAccounts} shipping / ${readyAccounts} ready`} />
+      <StatBlock icon={<Truck className="h-3.5 w-3.5 text-blue-400" />} label="Federal Pool" value={`${fedUnits}`} sub="DHS S&T" />
       {(onSiteTotal + virtualTotal > 0) && (
         <StatBlock icon={<Users className="h-3.5 w-3.5 text-purple-400" />} label="Support Staff" value={`${onSiteTotal + virtualTotal}`} sub={`${onSiteTotal} site / ${virtualTotal} virtual`} />
       )}
 
       <div className="ml-auto flex items-center gap-3 text-[10px]">
-        <Legend color="bg-emerald-500" label="All Delivered" />
+        <Legend color="bg-emerald-500" label="Shipping" />
         <Legend color="bg-blue-500" label="In Progress" />
-        <Legend color="bg-red-500" label="Open Deals" />
+        <Legend color="bg-amber-500" label="Pipeline" />
         <Legend color="bg-slate-500" label="No Data" />
       </div>
     </div>
