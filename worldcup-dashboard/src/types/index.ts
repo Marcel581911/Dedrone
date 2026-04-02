@@ -47,6 +47,9 @@ export interface DeliveryTracker {
   fbiTraining: string;
   readyForDelivery: string;
   shipmentStatus: string;
+  shippingAddress: string;
+  salesEngineer: string;
+  installDate: string;
   ae: string;
   owner: string;
   notes: string;

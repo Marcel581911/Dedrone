@@ -107,8 +107,10 @@ export default function UnifiedAgencyCard({ name, ownershipType, equipment, trac
             <TrackerRow label="Ready to Ship" value={tracker.readyForDelivery} />
             <TrackerRow label="Shipment" value={tracker.shipmentStatus} />
           </div>
-          <div className="mt-1 text-[9px] text-slate-500">
-            AE: {tracker.ae} · Owner: {tracker.owner}
+          <div className="mt-1 space-y-0.5 text-[9px] text-slate-500">
+            <div>AE: {tracker.ae} · Owner: {tracker.owner}</div>
+            {tracker.salesEngineer && <div>SE: {tracker.salesEngineer}</div>}
+            {tracker.installDate && <div>Install: <span className="text-cyan-400">{tracker.installDate}</span></div>}
           </div>
           {tracker.notes && (
             <>

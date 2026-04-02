@@ -36,11 +36,13 @@ export const hostCities: HostCity[] = [
       { id: 'nyc-morris-9', name: 'Battery Pack', model: 'Battery USA', quantity: 36, ownership: 'SLTT', ownerName: 'Morris County DPS', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
     ],
     tracker: [
-      { account: 'NYPD Counter-Terrorism', dealClosedWon: 'Yes', poReceived: 'Yes', waiverReceived: 'Pending', fbiTraining: 'Yes', readyForDelivery: 'Pending', shipmentStatus: 'Shipment Pending', ae: 'Jackson Markey', owner: 'Cole Austin', notes: '3/17: PO received. Awaiting waiver and delivery confirmation. Need to ship before EOQ' },
-      { account: 'Morris County DPS', dealClosedWon: 'Yes', poReceived: 'Yes', waiverReceived: 'N/A', fbiTraining: 'N/A', readyForDelivery: 'Yes', shipmentStatus: 'Shipping in April', ae: 'Jackson Markey / Carlo Capano', owner: 'Cole Austin', notes: '3/20: Meeting w/ Morris County on 3/23 to discuss deployment. Plan is to begin shipping in April' },
-      { account: 'NY State Police', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'Pending', fbiTraining: 'Yes', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Jackson Markey', owner: 'Cole Austin', notes: '3/20: Waiting on PO' },
-      { account: 'MTA PD', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'N/A', fbiTraining: 'N/A', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Jackson Markey', owner: 'Cole Austin', notes: '3/20: Waiting on PO' },
-      { account: 'MTA B&T', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'N/A', fbiTraining: 'N/A', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Jackson Markey', owner: 'Cole Austin', notes: '3/20: Waiting on PO' },
+      { account: 'NYPD Counter-Terrorism', dealClosedWon: 'Yes', poReceived: 'Yes', waiverReceived: 'Pending', fbiTraining: 'Yes', readyForDelivery: 'Yes', shipmentStatus: 'Shipped', shippingAddress: 'NYPD Counter Terrorism, ATT: Lt. Jame Reilly, 2615 W 13 St Brooklyn NY', salesEngineer: 'Chris Helmerson', installDate: '', ae: 'Jackson Markey', owner: 'Cole Austin', notes: '3/28: Small legal adjustment for waiver. Expect signature Monday so we can ship before EOQ' },
+      { account: 'Morris County DPS', dealClosedWon: 'Yes', poReceived: 'Yes', waiverReceived: 'N/A', fbiTraining: 'N/A', readyForDelivery: 'Yes', shipmentStatus: 'In Progress', shippingAddress: 'Morris County Dept of Law & Public Safety, 500 West Hanover Avenue, Morris Plains, NJ 07950', salesEngineer: 'Chris Helmerson', installDate: 'May 5th (pending equipment)', ae: 'Jackson Markey / Carlo Capano', owner: 'Cole Austin', notes: '3/28: Bulk shipments beginning Monday. Plan to deliver all equipment before May 1st' },
+      { account: 'NY State Police', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'Pending', fbiTraining: 'Yes', readyForDelivery: 'No', shipmentStatus: '-', shippingAddress: '', salesEngineer: 'Chris Helmerson', installDate: '', ae: 'Jackson Markey', owner: 'Cole Austin', notes: '3/20: Waiting on PO' },
+      { account: 'MTA PD', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'N/A', fbiTraining: 'N/A', readyForDelivery: 'No', shipmentStatus: '-', shippingAddress: '', salesEngineer: 'Chris Helmerson', installDate: '', ae: 'Jackson Markey', owner: 'Cole Austin', notes: '3/20: Waiting on PO' },
+      { account: 'MTA B&T', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'N/A', fbiTraining: 'N/A', readyForDelivery: 'No', shipmentStatus: '-', shippingAddress: '', salesEngineer: '', installDate: '', ae: 'Jackson Markey', owner: 'Cole Austin', notes: '3/20: Waiting on PO' },
+      { account: 'NJ State Police', dealClosedWon: '-', poReceived: '-', waiverReceived: '-', fbiTraining: '-', readyForDelivery: '-', shipmentStatus: '-', shippingAddress: '', salesEngineer: '', installDate: '', ae: '', owner: '', notes: '' },
+      { account: 'NJ Transit', dealClosedWon: '-', poReceived: '-', waiverReceived: '-', fbiTraining: '-', readyForDelivery: '-', shipmentStatus: '-', shippingAddress: '', salesEngineer: '', installDate: '', ae: '', owner: '', notes: '' },
     ],
     supportTeam: [],
   },
@@ -49,9 +51,9 @@ export const hostCities: HostCity[] = [
   {
     id: 'la', city: 'Los Angeles', state: 'CA', country: 'US', venue: 'SoFi Stadium', lat: 33.9535, lng: -118.3392, equipment: [],
     tracker: [
-      { account: 'LAPD HQ', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: '-', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Travis Scott', owner: 'Cole Austin', notes: '3/17: Funding released, working through DLA. Likely to close by 3/27' },
-      { account: 'Inglewood PD', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'Scheduled', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Clay Taylor', owner: 'Cole Austin', notes: '3/18: Submitting final quote to DLA. FBI CUSO scheduled' },
-      { account: 'California Highway Patrol', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'No', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Tiffany Van De Berg', owner: 'Cole Austin', notes: '3/18: Waiting for CalOES to confirm final dollar amount' },
+      { account: 'LAPD HQ', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: '-', readyForDelivery: 'No', shipmentStatus: '-', shippingAddress: '', salesEngineer: 'Vince Hill / Derek Bushman', installDate: '', ae: 'Travis Scott', owner: 'Cole Austin', notes: '3/17: Funding released, working through DLA. Likely to close by 3/27' },
+      { account: 'Inglewood PD', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'Scheduled', readyForDelivery: 'No', shipmentStatus: '-', shippingAddress: '', salesEngineer: 'Vince Hill / Derek Bushman', installDate: '', ae: 'Clay Taylor', owner: 'Cole Austin', notes: '3/18: Submitting final quote to DLA. FBI CUSO scheduled' },
+      { account: 'California Highway Patrol', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'No', readyForDelivery: 'No', shipmentStatus: '-', shippingAddress: '', salesEngineer: 'Vince Hill / Derek Bushman', installDate: '', ae: 'Tiffany Van De Berg', owner: 'Cole Austin', notes: '3/24: CHP waiting for CalOES to confirm final dollar amount' },
     ],
     supportTeam: [],
   },
@@ -66,7 +68,7 @@ export const hostCities: HostCity[] = [
       { id: 'dal-4', name: 'Starlink HW Kit', model: 'Starlink Mini', quantity: 5, ownership: 'SLTT', ownerName: 'Dallas PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
     ],
     tracker: [
-      { account: 'Dallas PD', dealClosedWon: 'Yes', poReceived: 'No', waiverReceived: 'Pending', fbiTraining: 'Yes', readyForDelivery: 'Pending', shipmentStatus: '-', ae: 'Jayde Wilks / Parker Chapman', owner: 'Cole Austin', notes: '3/20: Waiting on DPD to receive FIFA funding. Will ship immediately when finalized' },
+      { account: 'Dallas PD FIFA', dealClosedWon: 'Yes', poReceived: 'No', waiverReceived: 'Pending', fbiTraining: 'Yes', readyForDelivery: 'Pending', shipmentStatus: '-', shippingAddress: '', salesEngineer: 'Evan Mabry', installDate: 'Pending', ae: 'Jayde Wilks / Parker Chapman', owner: 'Cole Austin', notes: '3/28: Have begun shipping OSP portion. Still waiting for DPD to receive FIFA grant funding. Waiting on internal waiver from CAO office' },
     ],
     supportTeam: [],
   },
@@ -75,7 +77,7 @@ export const hostCities: HostCity[] = [
   {
     id: 'sf', city: 'San Francisco Bay Area', state: 'CA', country: 'US', venue: "Levi's Stadium", lat: 37.4033, lng: -121.9694, equipment: [],
     tracker: [
-      { account: 'Santa Clara County', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: '-', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Travis Scott', owner: 'Cole Austin', notes: '3/17: Moving forward through Solesource. Going through redlines' },
+      { account: 'Santa Clara County', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: '-', readyForDelivery: 'No', shipmentStatus: '-', shippingAddress: '', salesEngineer: 'Vince Hill / Derek Bushman', installDate: '', ae: 'Travis Scott', owner: 'Cole Austin', notes: '3/28: Expecting a PO any hour now' },
     ],
     supportTeam: [],
   },
@@ -96,10 +98,10 @@ export const hostCities: HostCity[] = [
       { id: 'mia-10', name: 'Fixed Site Standard+', model: 'Fixed Site Refresh', quantity: 4, ownership: 'SLTT', ownerName: 'Miami-Dade Sheriff Office', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
     ],
     tracker: [
-      { account: 'Miami-Dade Sheriff Office', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'March 23rd', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Jayde Wilks / Parker Chapman', owner: 'Soyeol Yoo', notes: '3/9: New quote being worked. Attending FBI CUSO on 3/23' },
-      { account: 'Miami PD', dealClosedWon: 'Order Submitted', poReceived: 'Yes', waiverReceived: 'No', fbiTraining: 'Early May', readyForDelivery: 'Yes', shipmentStatus: 'Shipment Pending', ae: 'Parker Chapman', owner: 'Cole Austin', notes: '3/20: PO received. Shipping non-mitigation ASAP. Mitigation ships May after FBI CUSO' },
-      { account: 'Miami Beach PD', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'Waiting for opening', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Jack Brunk', owner: 'Cole Austin', notes: '3/18: Waiting on state grant agreement language' },
-      { account: 'FL Dept of Law Enforcement (FDLE)', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'March 23rd', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Jack Brunk', owner: 'Cole Austin', notes: '3/18: Funds from Fed, state approval needed. Legislature battling over budget' },
+      { account: 'Miami-Dade Sheriff Office', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'March 23rd', readyForDelivery: 'No', shipmentStatus: '-', shippingAddress: '', salesEngineer: 'Alex Santos', installDate: '', ae: 'Jayde Wilks / Parker Chapman', owner: 'Soyeol Yoo', notes: '3/23: Wants to remove a fixed site originally scoped. Hoping to have PO in next 2 weeks' },
+      { account: 'Miami PD', dealClosedWon: 'Yes', poReceived: 'Yes', waiverReceived: 'No', fbiTraining: 'Early May', readyForDelivery: 'Yes', shipmentStatus: 'Partially Shipped', shippingAddress: 'City of Miami PD, 400 NW 2nd Avenue, Miami, FL 33128, Attn: Lt Alex Gutierrez', salesEngineer: 'Alex Santos', installDate: 'May 5th', ae: 'Parker Chapman', owner: 'Cole Austin', notes: '3/20: PO received. Shipping non-mitigation ASAP. Mitigation ships May after FBI CUSO' },
+      { account: 'Miami Beach PD', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'Waiting for opening', readyForDelivery: 'No', shipmentStatus: '-', shippingAddress: '', salesEngineer: 'Alex Santos', installDate: '', ae: 'Jack Brunk', owner: 'Cole Austin', notes: '3/18: Waiting on state grant agreement language' },
+      { account: 'FL Dept of Law Enforcement (FDLE)', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'March 23rd', readyForDelivery: 'No', shipmentStatus: '-', shippingAddress: '', salesEngineer: 'Alex Santos', installDate: '', ae: 'Jack Brunk', owner: 'Cole Austin', notes: '3/18: Funds from Fed, state approval needed. Legislature battling over budget' },
     ],
     supportTeam: [],
   },
@@ -113,9 +115,9 @@ export const hostCities: HostCity[] = [
       { id: 'atl-3', name: 'Multi-Node Full Spectrum Kit', model: 'Full Spectrum', quantity: 2, ownership: 'SLTT', ownerName: 'GA Bureau of Investigation', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
     ],
     tracker: [
-      { account: 'GA Bureau of Investigation', dealClosedWon: 'No', poReceived: 'No', waiverReceived: '-', fbiTraining: '-', readyForDelivery: '-', shipmentStatus: '-', ae: 'Nik Thompson', owner: 'Soyeol Yoo', notes: '3/12: GBI still finding funds, on hold' },
-      { account: 'Atlanta PD', dealClosedWon: '-', poReceived: '-', waiverReceived: '-', fbiTraining: '-', readyForDelivery: '-', shipmentStatus: '-', ae: 'Parker Chapman', owner: 'Cole Austin', notes: '' },
-      { account: 'Cobb County PD', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'Scheduled', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Sean Farren', owner: 'Cole Austin', notes: '3/18: Working through procurement, trying to get on Commission agenda for 3/24' },
+      { account: 'GA Bureau of Investigation', dealClosedWon: '-', poReceived: '-', waiverReceived: '-', fbiTraining: '-', readyForDelivery: '-', shipmentStatus: '-', shippingAddress: '', salesEngineer: '', installDate: '', ae: 'Nik Thompson', owner: 'Soyeol Yoo', notes: '3/12: GBI still finding funds, on hold' },
+      { account: 'Atlanta PD', dealClosedWon: '-', poReceived: '-', waiverReceived: '-', fbiTraining: 'Scheduled', readyForDelivery: '-', shipmentStatus: '-', shippingAddress: '', salesEngineer: '', installDate: '', ae: 'Parker Chapman', owner: 'Cole Austin', notes: '3/23: Most likely pushing to April, going to council' },
+      { account: 'Cobb County PD', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: 'Scheduled', readyForDelivery: 'No', shipmentStatus: '-', shippingAddress: '', salesEngineer: '', installDate: '', ae: 'Sean Farren', owner: 'Cole Austin', notes: '3/28: Approved on agenda 3/24. Will now have to go back to legal. Low upside to come in before EOQ' },
     ],
     supportTeam: [],
   },
@@ -131,8 +133,8 @@ export const hostCities: HostCity[] = [
       { id: 'phi-2', name: 'Titan 3', model: 'Titan 3 Kit', quantity: 2, ownership: 'SLTT', ownerName: 'Philadelphia PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
     ],
     tracker: [
-      { account: 'Philadelphia PD', dealClosedWon: 'Yes', poReceived: 'Yes', waiverReceived: 'Pending', fbiTraining: 'Yes', readyForDelivery: 'Pending', shipmentStatus: 'Shipment Pending', ae: 'Jackson Markey / Sean Farren', owner: 'Cole Austin', notes: '3/20: Ready to ship immediately. Need compliance waiver and delivery address. Ship before EOQ' },
-      { account: 'Delaware County OES', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'N/A', fbiTraining: 'N/A', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Travis Scott', owner: 'Cole Austin', notes: '3/20: Received $1.4M in cUAS funding. Discussing 10 Portables for county-wide coverage' },
+      { account: 'Philadelphia PD', dealClosedWon: 'Yes', poReceived: 'Yes', waiverReceived: 'Yes', fbiTraining: 'Yes', readyForDelivery: 'Yes', shipmentStatus: 'Shipped', shippingAddress: 'Delaware Valley Intelligence Center, 2810 S 20th St, Philadelphia, PA 19145, BLDG #6 Attn: SGT. Darnell Jessie', salesEngineer: 'Chris Helmerson', installDate: '', ae: 'Jackson Markey / Sean Farren', owner: 'Cole Austin', notes: '3/28: Equipment shipped' },
+      { account: 'Delaware County OES', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'N/A', fbiTraining: 'N/A', readyForDelivery: 'No', shipmentStatus: '-', shippingAddress: '', salesEngineer: '', installDate: '', ae: 'Travis Scott', owner: 'Cole Austin', notes: '3/20: Received $1.4M in cUAS funding. Discussing 10 Portables for county-wide coverage' },
     ],
     supportTeam: [],
   },
@@ -141,8 +143,8 @@ export const hostCities: HostCity[] = [
   {
     id: 'seattle', city: 'Seattle', state: 'WA', country: 'US', venue: 'Lumen Field', lat: 47.5952, lng: -122.3316, equipment: [],
     tracker: [
-      { account: 'King County', dealClosedWon: 'Order Submitted', poReceived: 'Yes', waiverReceived: 'No', fbiTraining: 'March 18th', readyForDelivery: 'Yes', shipmentStatus: 'Shipment Pending', ae: 'Travis Scott', owner: 'Cole Austin', notes: '3/20: PO received. Will begin shipping in April' },
-      { account: 'Washington State Police', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'No', fbiTraining: '-', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Travis Scott', owner: 'Cole Austin', notes: '3/20: Sourcewell PA issued, routing quote for signatures' },
+      { account: 'King County', dealClosedWon: 'Yes', poReceived: 'Yes', waiverReceived: 'Pending', fbiTraining: 'Yes', readyForDelivery: 'Yes', shipmentStatus: 'Pending', shippingAddress: '', salesEngineer: 'Vince Hill / Derek Bushman', installDate: 'Mid / Late May', ae: 'Travis Scott', owner: 'Cole Austin', notes: '3/20: PO received. Will begin shipping in April' },
+      { account: 'Washington State Police', dealClosedWon: 'Yes', poReceived: 'Yes', waiverReceived: 'Pending', fbiTraining: 'Yes', readyForDelivery: 'Pending', shipmentStatus: '-', shippingAddress: '', salesEngineer: '', installDate: 'Mid / Late May', ae: 'Travis Scott', owner: 'Cole Austin', notes: '3/25: PO received, in Huntsville now for FBI training. Will begin shipping in April' },
     ],
     supportTeam: [],
   },
@@ -161,8 +163,8 @@ export const hostCities: HostCity[] = [
       { id: 'kc-kcpd-8', name: 'Starlink HW Kit', model: 'Starlink Mini', quantity: 1, ownership: 'SLTT', ownerName: 'Kansas City PD', dealStatus: 'open', deliveryReady: 'no', delivered: 'pending' },
     ],
     tracker: [
-      { account: 'Kansas City PD', dealClosedWon: 'Yes', poReceived: 'Yes', waiverReceived: 'No', fbiTraining: 'April 4th', readyForDelivery: 'Yes', shipmentStatus: 'Partially Shipped', ae: 'Clay Taylor', owner: 'Cole Austin', notes: '3/20: Trailer, sensors, masts, starlink delivered. Cannot ship mitigation until FBI CUSO' },
-      { account: 'Kansas Highway Patrol', dealClosedWon: 'Order Submitted', poReceived: 'Yes', waiverReceived: 'No', fbiTraining: 'March 23rd', readyForDelivery: 'Yes', shipmentStatus: 'Shipping in April', ae: 'Tiffany Van De Berg', owner: 'Cole Austin', notes: '3/20: PO received. Order being processed. Shipments begin in April' },
+      { account: 'Kansas City PD', dealClosedWon: 'Yes', poReceived: 'Yes', waiverReceived: 'No', fbiTraining: 'April 4th', readyForDelivery: 'Yes', shipmentStatus: 'Partially Shipped', shippingAddress: 'Sensors: 700 Minnesota Avenue, Kansas City, KS 66101. Trailer: 4821 Armstrong Avenue, Kansas City, KS 66102', salesEngineer: 'Joe Garcia / Sean Phetchanpheng', installDate: 'April 16-17', ae: 'Clay Taylor', owner: 'Cole Austin', notes: '3/20: Trailer, sensors, masts, starlink delivered. Cannot ship mitigation until FBI CUSO' },
+      { account: 'Kansas Highway Patrol', dealClosedWon: 'Yes', poReceived: 'Yes', waiverReceived: 'Pending', fbiTraining: 'March 23rd', readyForDelivery: 'Yes', shipmentStatus: 'Pending', shippingAddress: '', salesEngineer: 'Joe Garcia / Sean Phetchanpheng', installDate: 'April 16-17', ae: 'Tiffany Van De Berg', owner: 'Cole Austin', notes: '3/28: PO received. Submitted to shipping. Shipments begin in April. Joint training with KCKPD' },
     ],
     supportTeam: [],
   },
@@ -171,7 +173,7 @@ export const hostCities: HostCity[] = [
   {
     id: 'boston', city: 'Boston', state: 'MA', country: 'US', venue: 'Gillette Stadium', lat: 42.0909, lng: -71.2643, equipment: [],
     tracker: [
-      { account: 'Mass State Police', dealClosedWon: 'No', poReceived: 'No', waiverReceived: 'Pending', fbiTraining: 'Yes', readyForDelivery: 'No', shipmentStatus: '-', ae: 'Jackson Markey', owner: 'Cole Austin', notes: '3/20: Waiting on PO' },
+      { account: 'Mass State Police', dealClosedWon: 'Yes', poReceived: 'Yes', waiverReceived: 'Pending', fbiTraining: 'Yes', readyForDelivery: 'Pending', shipmentStatus: '-', shippingAddress: 'Attn: Lt. Brian Mahoney, MA State Police HQ, 470 Worcester Road, Framingham MA 01702', salesEngineer: '', installDate: '', ae: 'Jackson Markey', owner: 'Cole Austin', notes: '3/28: PO received. Working on signed waiver and scheduling deployment meeting' },
     ],
     supportTeam: [],
   },
@@ -180,7 +182,7 @@ export const hostCities: HostCity[] = [
   {
     id: 'vancouver', city: 'Vancouver', state: 'BC', country: 'CA', venue: 'BC Place', lat: 49.2768, lng: -123.112, equipment: [],
     tracker: [
-      { account: 'Vancouver PD', dealClosedWon: 'Yes', poReceived: 'Yes', waiverReceived: 'N/A', fbiTraining: 'N/A', readyForDelivery: 'Pending', shipmentStatus: '-', ae: 'Clay Taylor / Mackenzie Simpson', owner: 'Soyeol Yoo', notes: '3/11: Will F/U with KD on 3/23' },
+      { account: 'Vancouver PD', dealClosedWon: 'Yes', poReceived: 'Yes', waiverReceived: 'N/A', fbiTraining: 'N/A', readyForDelivery: 'Pending', shipmentStatus: 'Pending', shippingAddress: '', salesEngineer: 'Vince Hill / Derek Bushman', installDate: '', ae: 'Kam Dhanoya', owner: 'Soyeol Yoo', notes: '3/24: Reached out to customer for ship date confirmation' },
     ],
     supportTeam: [],
   },
