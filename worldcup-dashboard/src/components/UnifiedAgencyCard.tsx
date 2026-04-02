@@ -84,16 +84,29 @@ export default function UnifiedAgencyCard({ name, ownershipType, equipment, trac
             </div>
           </div>
         </div>
-        {hasShipment && (
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-            tracker.shipmentStatus === 'Partially Shipped' ? 'bg-blue-900/50 text-blue-300' :
-            tracker.shipmentStatus === 'Shipping in April' ? 'bg-blue-900/50 text-blue-300' :
-            tracker.shipmentStatus === 'Shipment Pending' ? 'bg-amber-900/50 text-amber-300' :
-            'bg-slate-700 text-slate-400'
-          }`}>
-            {tracker.shipmentStatus}
-          </span>
-        )}
+        <div className="flex items-center gap-1.5">
+          {tracker && (
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+              tracker.c2Deployment === 'Deployed' ? 'bg-emerald-900/50 text-emerald-300' :
+              tracker.c2Deployment === 'In Progress' ? 'bg-blue-900/50 text-blue-300' :
+              tracker.c2Deployment === 'Scoped' ? 'bg-amber-900/50 text-amber-300' :
+              'bg-slate-700/50 text-slate-400'
+            }`}>
+              C2: {tracker.c2Deployment}
+            </span>
+          )}
+          {hasShipment && (
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+              tracker.shipmentStatus === 'Shipped' ? 'bg-emerald-900/50 text-emerald-300' :
+              tracker.shipmentStatus === 'Partially Shipped' || tracker.shipmentStatus === 'In Progress' ? 'bg-blue-900/50 text-blue-300' :
+              tracker.shipmentStatus === 'Shipping in April' ? 'bg-blue-900/50 text-blue-300' :
+              tracker.shipmentStatus === 'Shipment Pending' || tracker.shipmentStatus === 'Pending' ? 'bg-amber-900/50 text-amber-300' :
+              'bg-slate-700 text-slate-400'
+            }`}>
+              {tracker.shipmentStatus}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Tracker pipeline steps */}

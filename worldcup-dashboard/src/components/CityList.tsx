@@ -7,18 +7,24 @@ interface CityListProps {
   onCitySelect: (city: HostCity) => void;
 }
 
+function isStepPassed(value: string): boolean {
+  const v = value.toLowerCase();
+  return v === 'yes' || v === 'order submitted' || v === 'partially shipped' ||
+    v === 'shipping in april' || v === 'shipment pending' || v === 'shipped' ||
+    v === 'in progress' || v === 'pending';
+}
+
 function getTrackerSummary(city: HostCity) {
   if (city.tracker.length === 0) return null;
+  const activeTrackers = city.tracker.filter(t => t.dealClosedWon !== '-' && t.dealClosedWon !== '');
+  if (activeTrackers.length === 0) return null;
   const steps = ['dealClosedWon', 'poReceived', 'readyForDelivery', 'shipmentStatus'] as const;
   const stepLabels = ['Deal', 'PO', 'Ready', 'Shipped'];
   const results = steps.map(step => {
-    const passed = city.tracker.filter(t => {
-      const v = t[step].toLowerCase();
-      return v === 'yes' || v === 'order submitted' || v === 'partially shipped' || v === 'shipping in april' || v === 'shipment pending';
-    }).length;
-    return { passed, total: city.tracker.length };
+    const passed = activeTrackers.filter(t => isStepPassed(t[step])).length;
+    return { passed, total: activeTrackers.length };
   });
-  return { stepLabels, results, total: city.tracker.length };
+  return { stepLabels, results, total: activeTrackers.length };
 }
 
 function getUniqueOwners(city: HostCity): string[] {

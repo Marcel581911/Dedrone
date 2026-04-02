@@ -11,10 +11,18 @@ interface CityMarkerProps {
 function getCityStatus(city: HostCity): 'all-delivered' | 'has-issues' | 'in-progress' | 'no-data' {
   const hasData = city.equipment.length > 0 || city.tracker.length > 0;
   if (!hasData) return 'no-data';
-  const hasShipped = city.tracker.some(t => t.shipmentStatus.toLowerCase().includes('shipped') || t.shipmentStatus.toLowerCase().includes('shipping'));
+  const activeTrackers = city.tracker.filter(t => t.dealClosedWon !== '-' && t.dealClosedWon !== '');
+  if (activeTrackers.length === 0) return 'has-issues';
+  const allShipped = activeTrackers.length > 0 && activeTrackers.every(t => {
+    const s = t.shipmentStatus.toLowerCase();
+    return s === 'shipped' || s === 'in progress';
+  });
+  if (allShipped) return 'all-delivered';
+  const hasShipped = activeTrackers.some(t => {
+    const s = t.shipmentStatus.toLowerCase();
+    return s === 'shipped' || s === 'in progress' || s === 'partially shipped' || s.includes('shipping');
+  });
   if (hasShipped) return 'in-progress';
-  const hasClosed = city.tracker.some(t => t.dealClosedWon.toLowerCase() === 'yes' || t.dealClosedWon.toLowerCase() === 'order submitted');
-  if (hasClosed) return 'has-issues';
   return 'has-issues';
 }
 

@@ -47,6 +47,7 @@ export interface DeliveryTracker {
   fbiTraining: string;
   readyForDelivery: string;
   shipmentStatus: string;
+  c2Deployment: 'Not Started' | 'Scoped' | 'In Progress' | 'Deployed';
   shippingAddress: string;
   salesEngineer: string;
   installDate: string;
