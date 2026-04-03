@@ -1,0 +1,33 @@
+City,State,Country,Venue,Agency,Deal Won,PO Received,Shipment Status,C2 Deployment
+New York / New Jersey,NJ,US,MetLife Stadium,NYPD Counter-Terrorism,Yes,Yes,Shipped,Not Started
+New York / New Jersey,NJ,US,MetLife Stadium,Morris County DPS,Yes,Yes,In Progress,Not Started
+New York / New Jersey,NJ,US,MetLife Stadium,NY State Police,No,No,-,Not Started
+New York / New Jersey,NJ,US,MetLife Stadium,MTA PD,No,No,-,Not Started
+New York / New Jersey,NJ,US,MetLife Stadium,MTA B&T,No,No,-,Not Started
+New York / New Jersey,NJ,US,MetLife Stadium,NJ State Police,-,-,-,Not Started
+New York / New Jersey,NJ,US,MetLife Stadium,NJ Transit,-,-,-,Not Started
+Los Angeles,CA,US,SoFi Stadium,LAPD HQ,No,No,-,Not Started
+Los Angeles,CA,US,SoFi Stadium,Inglewood PD,No,No,-,Not Started
+Los Angeles,CA,US,SoFi Stadium,California Highway Patrol,No,No,-,Not Started
+Dallas,TX,US,AT&T Stadium,Dallas PD FIFA,Yes,No,-,Not Started
+San Francisco Bay Area,CA,US,Levi's Stadium,Santa Clara County,No,No,-,Not Started
+Miami,FL,US,Hard Rock Stadium,Miami-Dade Sheriff Office,No,No,-,Not Started
+Miami,FL,US,Hard Rock Stadium,Miami PD,Yes,Yes,Partially Shipped,Not Started
+Miami,FL,US,Hard Rock Stadium,Miami Beach PD,No,No,-,Not Started
+Miami,FL,US,Hard Rock Stadium,FL Dept of Law Enforcement (FDLE),No,No,-,Not Started
+Atlanta,GA,US,Mercedes-Benz Stadium,GA Bureau of Investigation,-,-,-,Not Started
+Atlanta,GA,US,Mercedes-Benz Stadium,Atlanta PD,-,-,-,Not Started
+Atlanta,GA,US,Mercedes-Benz Stadium,Cobb County PD,No,No,-,Not Started
+Houston,TX,US,NRG Stadium,-,-,-,-,-
+Philadelphia,PA,US,Lincoln Financial Field,Philadelphia PD,Yes,Yes,Shipped,Not Started
+Philadelphia,PA,US,Lincoln Financial Field,Delaware County OES,No,No,-,Not Started
+Seattle,WA,US,Lumen Field,King County,Yes,Yes,Pending,Not Started
+Seattle,WA,US,Lumen Field,Washington State Police,Yes,Yes,-,Not Started
+Kansas City,MO,US,Arrowhead Stadium,Kansas City PD,Yes,Yes,Partially Shipped,Not Started
+Kansas City,MO,US,Arrowhead Stadium,Kansas Highway Patrol,Yes,Yes,Pending,Not Started
+Boston,MA,US,Gillette Stadium,Mass State Police,Yes,Yes,-,Not Started
+Vancouver,BC,Canada,BC Place,Vancouver PD,Yes,Yes,Pending,Not Started
+Toronto,ON,Canada,BMO Field,-,-,-,-,-
+Mexico City,CDMX,Mexico,Estadio Azteca,-,-,-,-,-
+Guadalajara,JAL,Mexico,Estadio Akron,-,-,-,-,-
+Monterrey,NL,Mexico,Estadio BBVA,-,-,-,-,-
