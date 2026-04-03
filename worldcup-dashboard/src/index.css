@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    @apply m-0 bg-slate-950 text-white antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  #root {
+    @apply h-screen w-screen overflow-hidden;
+  }
+}
+
+.leaflet-container {
+  background: #0f172a !important;
+}
+
+.leaflet-tile-pane {
+  filter: brightness(0.75) saturate(0.5);
+}
+
+.city-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 3px solid #3b82f6;
+  background: rgba(30, 64, 175, 0.85);
+  color: white;
+  font-weight: 700;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+}
+
+.city-marker:hover {
+  transform: scale(1.2);
+  border-color: #60a5fa;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
+}
+
+.city-marker.selected {
+  border-color: #f59e0b;
+  background: rgba(180, 83, 9, 0.9);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.8);
+}
+
+.city-marker.all-delivered {
+  border-color: #22c55e;
+  background: rgba(22, 101, 52, 0.85);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
+}
+
+.city-marker.in-progress {
+  border-color: #3b82f6;
+  background: rgba(30, 64, 175, 0.85);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+}
+
+.city-marker.has-issues {
+  border-color: #ef4444;
+  background: rgba(153, 27, 27, 0.85);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+}
+
+.city-marker.no-data {
+  border-color: #64748b;
+  background: rgba(51, 65, 85, 0.85);
+  box-shadow: 0 0 8px rgba(100, 116, 139, 0.3);
+  font-size: 14px;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #1e293b !important;
+  color: white !important;
+  border-radius: 12px !important;
+  border: 1px solid #334155 !important;
+}
+
+.leaflet-popup-tip {
+  background: #1e293b !important;
+}
+
+.leaflet-popup-content {
+  margin: 8px 12px !important;
+  font-size: 13px !important;
+}
